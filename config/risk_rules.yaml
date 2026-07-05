@@ -1,0 +1,36 @@
+# Risk scoring rules for CruiseMode scan findings
+# Used by the RiskScorer tool to classify and prioritize issues
+
+severity_weights:
+  CRITICAL: 10
+  HIGH: 7
+  MEDIUM: 4
+  LOW: 2
+  INFO: 1
+
+category_weights:
+  oss_dependency: 1.5
+  pii_logging: 1.3
+  owasp_validation: 1.2
+  clean_code: 1.0
+  sonarqube_smell: 0.8
+
+thresholds:
+  block_build:
+    min_score: 30
+    or_any_critical: true
+  review_needed:
+    min_score: 15
+  ready_for_pr:
+    max_score: 14
+
+auto_patch_confidence:
+  high:
+    min_score: 0.85
+    action: "auto_patch"
+  medium:
+    min_score: 0.60
+    action: "suggest_patch"
+  low:
+    min_score: 0.0
+    action: "flag_for_review"

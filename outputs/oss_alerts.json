@@ -1,0 +1,38 @@
+{
+  "alert_required": true,
+  "status": "ALERT",
+  "blocking": false,
+  "reason": "Critical OSS dependency detected. CruiseMode does not auto-patch OSS dependencies because upgrades require regression testing, compatibility checks, license review, and downstream security validation.",
+  "findings": [
+    {
+      "package": "pyjwt",
+      "current_version": "2.3.0",
+      "severity": "CRITICAL",
+      "cve": "CVE-2022-29217",
+      "recommended_action": "Review and test dependency upgrade before merge.",
+      "auto_patch_applied": false
+    },
+    {
+      "package": "requests",
+      "current_version": "2.25.0",
+      "severity": "MEDIUM",
+      "cve": "CVE-2023-32681",
+      "recommended_action": "Review and test dependency upgrade before merge.",
+      "auto_patch_applied": false
+    },
+    {
+      "package": "urllib3",
+      "current_version": "1.26.5",
+      "severity": "LOW",
+      "cve": "CVE-2023-45803",
+      "recommended_action": "Review and test dependency upgrade before merge.",
+      "auto_patch_applied": false
+    }
+  ],
+  "allowed_actions": [
+    "REVIEW_DEPENDENCY_UPGRADE",
+    "CREATE_SECURITY_TICKET",
+    "ACCEPT_TEMPORARY_RISK_WITH_APPROVAL",
+    "LET_JENKINS_SECURITY_PIPELINE_VALIDATE"
+  ]
+}

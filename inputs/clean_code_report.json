@@ -1,0 +1,46 @@
+{
+  "report_type": "clean_code",
+  "tool": "CruiseMode Clean Code Analyzer",
+  "timestamp": "2026-07-05T10:00:00Z",
+  "target": "sample_app/",
+  "findings": [
+    {
+      "id": "CC-001",
+      "severity": "MEDIUM",
+      "category": "broad_exception",
+      "file": "sample_app/refund_service.py",
+      "line": 72,
+      "rule": "W0703",
+      "message": "Catching too general exception 'Exception'. Use specific exception types.",
+      "suggestion": "Replace bare 'except Exception' with specific exceptions like ValueError, TypeError."
+    },
+    {
+      "id": "CC-002",
+      "severity": "LOW",
+      "category": "code_style",
+      "file": "sample_app/refund_service.py",
+      "line": 1,
+      "rule": "C0114",
+      "message": "Module docstring could be more descriptive about public interface.",
+      "suggestion": "Add detailed module-level documentation."
+    },
+    {
+      "id": "CC-003",
+      "severity": "MEDIUM",
+      "category": "complexity",
+      "file": "sample_app/refund_service.py",
+      "line": 20,
+      "rule": "R0911",
+      "message": "Function 'process_refund' has too many return statements (4). Consider refactoring.",
+      "suggestion": "Extract validation logic into separate helper functions."
+    }
+  ],
+  "summary": {
+    "total_findings": 3,
+    "critical": 0,
+    "high": 0,
+    "medium": 2,
+    "low": 1,
+    "info": 0
+  }
+}
