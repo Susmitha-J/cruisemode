@@ -717,12 +717,12 @@ def main():
                 for name, uri in cloud_gcs.get("artifacts", {}).items():
                     st.markdown(f"- **{name}:** `{uri}`")
             else:
-                st.info("ℹ️ Cloud upload running in demo/mock mode.")
-                st.markdown("- **pr_report.md:** `gs://mock-bucket/reports/Refund API/pr_report.md`")
-                st.markdown("- **validation_results.json:** `gs://mock-bucket/reports/Refund API/validation_results.json`")
-                st.markdown("- **suggested_changes.md:** `gs://mock-bucket/reports/Refund API/suggested_changes.md`")
-                st.markdown("- **jenkins_handoff.json:** `gs://mock-bucket/reports/Refund API/jenkins_handoff.json`")
-                st.markdown("- **oss_alerts.json:** `gs://mock-bucket/reports/Refund API/oss_alerts.json`")
+                feature_display = results.get("feature", "Unknown Feature")
+                st.markdown(f"- **pr_report.md:** `gs://mock-bucket/reports/{feature_display}/pr_report.md`")
+                st.markdown(f"- **validation_results.json:** `gs://mock-bucket/reports/{feature_display}/validation_results.json`")
+                st.markdown(f"- **suggested_changes.md:** `gs://mock-bucket/reports/{feature_display}/suggested_changes.md`")
+                st.markdown(f"- **jenkins_handoff.json:** `gs://mock-bucket/reports/{feature_display}/jenkins_handoff.json`")
+                st.markdown(f"- **oss_alerts.json:** `gs://mock-bucket/reports/{feature_display}/oss_alerts.json`")
 
             st.markdown("---")
 
@@ -737,7 +737,7 @@ def main():
                 mock_fields = {
                     "run_id": "run_" + results.get("timestamp", "").replace(":", "-"),
                     "timestamp": results.get("timestamp"),
-                    "feature_name": "Refund API",
+                    "feature_name": results.get("feature", "Unknown Feature"),
                     "branch_name": jenkins_handoff.get("branch", "feature/boilerplate"),
                     "final_status": recommendation,
                     "total_findings": scan.get("total_findings", 12),

@@ -1,8 +1,8 @@
 # CruiseMode PR Report
 
-**Generated:** 2026-07-06 06:06:43 UTC
+**Generated:** 2026-07-06 09:04:07 UTC
 **Feature:** Refund API Validation
-**Recommendation:** `READY_WITH_ALERTS`
+**Recommendation:** `BLOCKED`
 
 ---
 
@@ -18,27 +18,19 @@ and ran local validation.
 
 | ID | Description | Category | Testable |
 |----|-------------|----------|----------|
-| AC-001 | Refund Amount Validation | validation | ✅ |
-| AC-002 | Completed Payment Requirement | validation | ✅ |
-| AC-003 | Pending Payment Conflict | validation | ✅ |
-| AC-004 | PII Logging Safety | security | ✅ |
-| AC-005 | Test Coverage | security | ✅ |
 
 ---
 
 ## 3. Scan Summary
 
-- **Total Findings:** 12
+- **Total Findings:** 2
 - **By Severity:** {
-  "MEDIUM": 5,
-  "LOW": 4,
-  "HIGH": 1,
-  "INFO": 1,
+  "WARNING": 1,
   "CRITICAL": 1
 }
-- **Auto-patchable:** 9
-- **Requires Review:** 3
-- **Critical OSS:** 1
+- **Auto-patchable:** 1
+- **Requires Review:** 1
+- **Critical OSS:** 0
 
 ---
 
@@ -46,11 +38,10 @@ and ran local validation.
 
 | Patch ID | Type | Description |
 |----------|------|-------------|
-| PATCH-001 | pii_logging | Masked PII fields in log statement — now logs only payment_id and amount |
-| PATCH-002 | clean_code | Narrowed broad 'except Exception' to specific types (ValueError, TypeError) |
-| PATCH-003 | sonarqube_smell | Added refactoring note for cognitive complexity (SQ-001, CC-003) |
+| PATCH-001 | clean_code | Narrowed broad 'except Exception' to specific types in service.py |
+| PATCH-002 | pii_logging | Flagged potential PII/secret in log statement in service.py |
 
-**Files Modified:** 2
+**Files Modified:** 1
 
 ---
 
@@ -58,67 +49,52 @@ and ran local validation.
 
 CruiseMode does not auto-patch OSS dependencies because dependency upgrades require regression testing, compatibility review, and downstream security validation.
 
-- 🔴 **pyjwt@2.3.0** — CVE-2022-29217 (CRITICAL)
-  - Recommended Action: Review dependency upgrade with regression testing before merge.
-  - Auto-Patch Applied: No
-
-- 🟢 **requests@2.25.0** — CVE-2023-32681 (MEDIUM)
-  - Recommended Action: Review dependency upgrade with regression testing before merge.
-  - Auto-Patch Applied: No
-
-- 🟢 **urllib3@1.26.5** — CVE-2023-45803 (LOW)
-  - Recommended Action: Review dependency upgrade with regression testing before merge.
-  - Auto-Patch Applied: No
-
+No OSS dependency alerts.
 ---
 
 ## 6. Generated Tests
 
-- **Test files:** 3
-- **Total tests:** 8
-- **Test types:** unit, api
+- **Test files:** 2
+- **Total tests:** 2
+- **Test types:** smoke, quality
 
 ---
 
 ## 7. Local Validation Results
 
-- **Status:** PASSED
-- **Passed:** 9/9
+- **Status:** ERROR
+- **Passed:** 0/2
 - **Failed:** 0
-- **Errors:** 0
-- **Duration:** 0.42s
+- **Errors:** 2
+- **Duration:** 0.59s
 
 ---
 
 ## 8. Remaining Review Items
 
-- ⚠️ 5 unresolved code/security finding(s) remain:
-  - `CC-002` (LOW) — Module docstring could be more descriptive about public interface.
-  - `OWASP-002` (MEDIUM) — No explicit input length validation on 'card_number' field. Could accept malform
-  - `OWASP-003` (LOW) — No security headers configured (X-Content-Type-Options, X-Frame-Options).
-  - `SQ-002` (LOW) — Unused import detected or import could be more specific.
-  - `SQ-003` (INFO) — String literal 'error' is duplicated 3 times. Define a constant instead.
-- 🔧 3 safe patch(es) applied — human review recommended before Jenkins
-- ℹ️ OSS advisory alert(s) logged (non-blocking)
+- ⚠️ 1 unresolved code/security finding(s) remain:
+  - `SEC-001` (CRITICAL) — Token leak in logging at line 7 in sample_app/service.py
+- 🔧 2 safe patch(es) applied — human review recommended before Jenkins
 
 ---
 
 ## 9. Jenkins Handoff Recommendation
 
-**Handoff Recommendation:** Safe to trigger Jenkins feature build, but review OSS and non-blocking alerts. Dependency upgrades should be handled with regression testing and security review.
+**Handoff Recommendation:** Do not trigger Jenkins. Resolve blockers first.
 
 ---
 
 ## 10. Suggested PR Summary
 
-> **Refund API Feature — Pre-Jenkins Validation Complete (Ready with Alerts)**
+> **Refund API Feature — Pre-Jenkins Validation Complete (BLOCKED)**
 >
-> CruiseMode local validation passed and safe sandbox patches were applied. Generated unit/API tests passed. A critical OSS dependency alert was detected and should be reviewed through the normal dependency and regression process. CruiseMode recommends triggering Jenkins with awareness of the OSS alert.
+> CruiseMode automated validation has completed. 2 safe patches were applied (PII logging, clean code, code smells). 2 tests were generated and some require review.
 
 ---
 
 ## 11. Final Recommendation
 
-### `READY_WITH_ALERTS`
+### `BLOCKED`
 
-🟠 **READY_WITH_ALERTS** — Local tests pass, sandbox validation passes, and safe patches pass. OSS dependency alerts or non-blocking clean-code/SonarQube items exist. Proceed with awareness of alerts.
+🚫 **BLOCKED** — One or more critical issues prevent this feature from proceeding:
+tests failing, sandbox validation failure, unresolved sensitive data leak, or critical code/security issue.

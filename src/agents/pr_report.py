@@ -507,7 +507,7 @@ CruiseMode does not auto-patch OSS dependencies because dependency upgrades requ
 
         results = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "feature": "Refund API",
+            "feature": state.get("feature_name", "Unknown Feature"),
             "recommendation": recommendation,
             "final_status": recommendation,
             "code_validation_status": code_validation_status,

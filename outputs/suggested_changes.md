@@ -1,34 +1,24 @@
 # Suggested Changes
 
-**Total Patches Applied:** 3
+**Total Patches Applied:** 2
 
-## PATCH-001: pii_logging
+## PATCH-001: clean_code
 
-**File:** `.sandbox/app.py`
+**File:** `.sandbox/service.py`
 
-Masked PII fields in log statement — now logs only payment_id and amount
-
-**Related findings:** OWASP-001
-
----
-
-## PATCH-002: clean_code
-
-**File:** `.sandbox/refund_service.py`
-
-Narrowed broad 'except Exception' to specific types (ValueError, TypeError)
+Narrowed broad 'except Exception' to specific types in service.py
 
 **Related findings:** CC-001
 
 ---
 
-## PATCH-003: sonarqube_smell
+## PATCH-002: pii_logging
 
-**File:** `.sandbox/refund_service.py`
+**File:** `.sandbox/service.py`
 
-Added refactoring note for cognitive complexity (SQ-001, CC-003)
+Flagged potential PII/secret in log statement in service.py
 
-**Related findings:** SQ-001, CC-003
+**Related findings:** SEC-002
 
 ---
 
