@@ -532,11 +532,15 @@ def main():
                 progress_bar.progress(val)
                 status_text.text(text)
 
-            # Run actual sequential workflow engine
-            workflow = CruiseModeWorkflow()
-            workflow.run()
-
-            st.success("🎉 Validation Complete! BigQuery logs and GCS buckets updated in real-time.")
+            # Run actual sequential workflow engine with error fallback
+            try:
+                workflow = CruiseModeWorkflow()
+                workflow.run()
+                st.success("🎉 Validation Complete! BigQuery logs and GCS buckets updated in real-time.")
+            except Exception as e:
+                st.error(f"❌ CruiseMode Workflow Execution Failed: {e}")
+                st.info("System falls back to standard results. Check GCS bucket or local logs for detailed errors.")
+            
             st.rerun()
 
         st.markdown("---")
