@@ -257,31 +257,119 @@ def setup_demo_files(case_name: str, repo_url: str = "", custom_ac: str = ""):
             subprocess.run(["git", "clone", "--depth", "1", repo_url, "sample_app"], check=True)
             # Remove inner git history
             shutil.rmtree("sample_app/.git", ignore_errors=True)
+
+        # Ensure scaffolding files exist if the repo doesn't have them
+        if not os.path.exists("sample_app/refund_service.py"):
+            with open("sample_app/refund_service.py", "w") as f:
+                f.write("def dummy(): pass\n")
             
         # Write requirements
         with open("inputs/acceptance_criteria.md", "w") as f:
             f.write(custom_ac if custom_ac else "# Acceptance Criteria - Custom Repo\n- AC-1: Verify code runs cleanly.")
-            
-        # Write scans
+
+        # ---- REAL CODE SCANNER: Scan cloned .py files for actual issues ----
+        import re as _re
+        owasp_findings = []
+        clean_code_findings = []
+        oss_findings = []
+        finding_id_counter = 1
+
+        for root, _dirs, files in os.walk("sample_app"):
+            for fname in files:
+                if not fname.endswith(".py"):
+                    continue
+                fpath = os.path.join(root, fname)
+                try:
+                    with open(fpath, "r", encoding="utf-8", errors="ignore") as pf:
+                        lines = pf.readlines()
+                except Exception:
+                    continue
+
+                for i, line in enumerate(lines, 1):
+                    # Detect broad except
+                    if _re.search(r"except\s+Exception\s*:", line):
+                        clean_code_findings.append({
+                            "id": f"CC-{finding_id_counter:03d}",
+                            "severity": "WARNING",
+                            "type": "BROAD_EXCEPTION",
+                            "message": f"Broad 'except Exception' at line {i} in {fpath}.",
+                            "file": fpath,
+                            "line": i,
+                            "auto_patchable": True
+                        })
+                        finding_id_counter += 1
+
+                    # Detect bare except
+                    if _re.search(r"except\s*:", line) and "except Exception" not in line:
+                        clean_code_findings.append({
+                            "id": f"CC-{finding_id_counter:03d}",
+                            "severity": "WARNING",
+                            "type": "BARE_EXCEPT",
+                            "message": f"Bare 'except:' clause at line {i} in {fpath}.",
+                            "file": fpath,
+                            "line": i,
+                            "auto_patchable": True
+                        })
+                        finding_id_counter += 1
+
+                    # Detect potential PII logging (card numbers, SSN, password in log/print)
+                    if _re.search(r"(print|log|logging)\s*\(.*?(password|card|ssn|secret|token|key)", line, _re.IGNORECASE):
+                        owasp_findings.append({
+                            "id": f"SEC-{finding_id_counter:03d}",
+                            "severity": "CRITICAL",
+                            "type": "PII_LEAK",
+                            "message": f"Potential PII/secret leak in logging at line {i} in {fpath}.",
+                            "file": fpath,
+                            "line": i,
+                            "auto_patchable": True
+                        })
+                        finding_id_counter += 1
+
+                    # Detect hardcoded secrets/API keys
+                    if _re.search(r"['\"](?:AIza|sk-|AKIA|ghp_|gho_|glpat-)[A-Za-z0-9_\-]{10,}", line):
+                        owasp_findings.append({
+                            "id": f"SEC-{finding_id_counter:03d}",
+                            "severity": "CRITICAL",
+                            "type": "HARDCODED_SECRET",
+                            "message": f"Hardcoded API key/secret detected at line {i} in {fpath}.",
+                            "file": fpath,
+                            "line": i,
+                            "auto_patchable": False
+                        })
+                        finding_id_counter += 1
+
+                    # Detect raw SQL injection
+                    if _re.search(r"(execute|cursor)\s*\(\s*f['\"]", line, _re.IGNORECASE):
+                        owasp_findings.append({
+                            "id": f"SEC-{finding_id_counter:03d}",
+                            "severity": "CRITICAL",
+                            "type": "SQL_INJECTION",
+                            "message": f"Potential SQL injection via f-string at line {i} in {fpath}.",
+                            "file": fpath,
+                            "line": i,
+                            "auto_patchable": False
+                        })
+                        finding_id_counter += 1
+
+        # If no findings at all, note that the code is clean
+        if not owasp_findings and not clean_code_findings:
+            clean_code_findings.append({
+                "id": "CC-001",
+                "severity": "INFO",
+                "type": "CLEAN",
+                "message": "No common code quality issues detected in the scanned Python files.",
+                "file": "sample_app/",
+                "line": 0,
+                "auto_patchable": False
+            })
+
+        # Write REAL grounded scan reports
         with open("inputs/owasp_scan_report.json", "w") as f:
-            f.write(json.dumps({
-                "project": "Custom Repository",
-                "findings": [
-                    {
-                        "id": "SEC-001",
-                        "severity": "CRITICAL",
-                        "type": "PII_LEAK",
-                        "message": "Potential PII leak detected.",
-                        "file": "sample_app/app.py",
-                        "line": 1,
-                        "auto_patchable": True
-                    }
-                ]
-            }))
+            f.write(json.dumps({"project": "Custom Repository", "findings": owasp_findings}, indent=2))
         with open("inputs/clean_code_report.json", "w") as f:
-            f.write(json.dumps({"project": "Custom Repository", "findings": []}))
+            f.write(json.dumps({"project": "Custom Repository", "findings": clean_code_findings}, indent=2))
         with open("inputs/oss_scan_report.json", "w") as f:
-            f.write(json.dumps({"project": "Custom Repository", "findings": []}))
+            f.write(json.dumps({"project": "Custom Repository", "findings": oss_findings}))
 
 
 def main():
