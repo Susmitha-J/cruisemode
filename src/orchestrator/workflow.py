@@ -90,7 +90,12 @@ class CruiseModeWorkflow:
             "started_at": time.time(),
         }
 
-        # Ensure output directories exist
+        # Clean up stale files from previous runs to prevent test pollution
+        if os.path.exists(state["generated_tests_dir"]):
+            import shutil
+            shutil.rmtree(state["generated_tests_dir"], ignore_errors=True)
+            
+        # Ensure directories exist
         os.makedirs(state["output_dir"], exist_ok=True)
         os.makedirs(state["generated_tests_dir"], exist_ok=True)
 

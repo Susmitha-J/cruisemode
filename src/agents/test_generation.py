@@ -63,7 +63,7 @@ class TestGenerationAgent(BaseAgent):
             py_files = self._discover_py_files(sandbox_dir)
             self.log(f"Discovered {len(py_files)} Python files in sandbox.")
 
-            from src.tools.gemini_client import GeminiClient
+            from src.tools.gemini_client import GeminiClient  # pyrefly: ignore [missing-import]
             gemini = GeminiClient()
 
             if gemini.is_enabled and py_files:
@@ -138,6 +138,8 @@ class TestGenerationAgent(BaseAgent):
 
         try:
             test_code = gemini.generate_text(prompt, system_instruction=system_instruction)
+            if not test_code:
+                return self._write_dynamic_tests(test_path, sandbox_dir, py_files, {})
             # Strip markdown fences
             test_code = test_code.strip()
             if test_code.startswith("```python"):

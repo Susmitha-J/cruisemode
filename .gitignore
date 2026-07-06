@@ -140,3 +140,7 @@ Thumbs.db
 
 # CruiseMode specific temp files
 .sandbox/
+
+generated_tests/
+
+outputs/

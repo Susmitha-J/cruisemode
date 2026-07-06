@@ -77,7 +77,20 @@ class GeminiClient:
             else:
                 model = self.client
             response = model.generate_content(prompt)
-            return response.text
+            # Handle None/empty responses (safety filters, blocked content)
+            if response and hasattr(response, "text") and response.text:
+                return response.text
+            # Try candidates fallback safely
+            if response and hasattr(response, "candidates") and response.candidates:
+                candidate = response.candidates[0]
+                if candidate and hasattr(candidate, "content") and candidate.content:
+                    parts = getattr(candidate.content, "parts", None)
+                    if parts and len(parts) > 0:
+                        text = getattr(parts[0], "text", None)
+                        if text:
+                            return text
+            logger.warning("Gemini returned empty or blocked response. Falling back to mock.")
+            return self._mock_response(prompt)
         except Exception as e:
             logger.error(f"Error calling Gemini API: {e}. Falling back to mock.")
             return self._mock_response(prompt)

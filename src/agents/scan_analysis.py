@@ -10,6 +10,7 @@ each finding as auto-patchable or requiring human review.
 import json
 from typing import Any
 
+# pyrefly: ignore [missing-import]
 from src.agents.base import BaseAgent
 
 
@@ -92,7 +93,7 @@ class ScanAnalysisAgent(BaseAgent):
         }
 
         # Generate AI-powered analysis summary using Gemini
-        from src.tools.gemini_client import GeminiClient
+        from src.tools.gemini_client import GeminiClient  # pyrefly: ignore [missing-import]
         gemini = GeminiClient()
         if gemini.is_enabled and all_findings:
             findings_text = "\n".join(

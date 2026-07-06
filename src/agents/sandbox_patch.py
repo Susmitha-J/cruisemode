@@ -16,6 +16,7 @@ import re
 import shutil
 from typing import Any
 
+# pyrefly: ignore [missing-import]
 from src.agents.base import BaseAgent
 
 
@@ -68,7 +69,7 @@ class SandboxPatchAgent(BaseAgent):
                     files_modified.add(service_path)
         else:
             # --- Dynamic: Use Gemini AI for intelligent patching ---
-            from src.tools.gemini_client import GeminiClient
+            from src.tools.gemini_client import GeminiClient  # pyrefly: ignore [missing-import]
             gemini = GeminiClient()
             patch_id = 1
 
@@ -109,6 +110,24 @@ class SandboxPatchAgent(BaseAgent):
                             files_modified.add(fpath)
                             patch_id += len(p["patches"])
 
+        # Map patches to real scan report findings by file name and type to ensure findings are resolved
+        all_findings = state.get("scan_analysis", {}).get("all_findings", [])
+        for patch in patches_applied:
+            patch_file = os.path.basename(patch.get("file", ""))
+            patch_type = patch.get("type", "")
+            mapped_ids = []
+            for finding in all_findings:
+                finding_file = os.path.basename(finding.get("file", ""))
+                if patch_file == finding_file:
+                    f_type = finding.get("type", "").upper()
+                    f_cat = finding.get("category", "").upper()
+                    if patch_type == "clean_code" and ("EXCEPTION" in f_type or "EXCEPT" in f_type or "EXCEPTION" in f_cat or "EXCEPT" in f_cat):
+                        mapped_ids.append(finding.get("id"))
+                    elif patch_type == "pii_logging" and ("PII" in f_type or "SECRET" in f_type or "PII" in f_cat or "SECRET" in f_cat or "LEAK" in f_type or "LEAK" in f_cat):
+                        mapped_ids.append(finding.get("id"))
+            if mapped_ids:
+                patch["finding_ids"] = list(set(mapped_ids))
+
         state["sandbox"] = {
             "sandbox_dir": sandbox_dir,
             "patches_applied": patches_applied,
@@ -146,6 +165,8 @@ class SandboxPatchAgent(BaseAgent):
 
         try:
             patched = gemini.generate_text(prompt, system_instruction=system_instruction)
+            if not patched:
+                return None
             # Strip markdown code fences if Gemini added them
             patched = patched.strip()
             if patched.startswith("```python"):
@@ -204,16 +225,24 @@ class SandboxPatchAgent(BaseAgent):
             self.log(f"⚠️ Gemini output for {rel_path} was invalid Python, falling back to regex", level="warning")
             # Fall back to regex patching
             result_patches = []
-            p = self._patch_broad_exceptions_dynamic(filepath, start_id, rel_path)
-            if p:
-                result_patches.extend(p["patches"])
+            p1 = self._patch_broad_exceptions_dynamic(filepath, start_id, rel_path)
+            if p1:
+                result_patches.extend(p1["patches"])
+                start_id += len(p1["patches"])
+            p2 = self._patch_pii_logging_dynamic(filepath, start_id, rel_path)
+            if p2:
+                result_patches.extend(p2["patches"])
             return result_patches if result_patches else None
         except Exception as e:
             self.log(f"⚠️ Gemini error for {rel_path}: {e}, falling back to regex", level="warning")
             result_patches = []
-            p = self._patch_broad_exceptions_dynamic(filepath, start_id, rel_path)
-            if p:
-                result_patches.extend(p["patches"])
+            p1 = self._patch_broad_exceptions_dynamic(filepath, start_id, rel_path)
+            if p1:
+                result_patches.extend(p1["patches"])
+                start_id += len(p1["patches"])
+            p2 = self._patch_pii_logging_dynamic(filepath, start_id, rel_path)
+            if p2:
+                result_patches.extend(p2["patches"])
             return result_patches if result_patches else None
 
 
@@ -270,7 +299,7 @@ class SandboxPatchAgent(BaseAgent):
         sensitive_pattern = re.compile(
             r"((?:print|logging\.?\w*|logger\.?\w*)\s*\(.*?"
             r"(?:password|card|ssn|secret|token|api_key).*?\))",
-            re.IGNORECASE | re.DOTALL,
+            re.IGNORECASE,
         )
 
         matches = list(sensitive_pattern.finditer(content))
