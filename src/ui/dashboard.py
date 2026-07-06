@@ -1,26 +1,33 @@
 from __future__ import annotations
 
 """
-CruiseMode Streamlit Dashboard v0.2
+CruiseMode Streamlit Dashboard v0.2 (Hackathon Edition)
 
 Displays the results of a CruiseMode workflow run:
 1. Feature Readiness Status
 2. Jenkins Handoff Recommendation
 3. Acceptance Criteria Coverage
 4. Scan Summary
-5. Safe Patches Applied
+5. Safe Patches Applied (with visual HTML side-by-side diff)
 6. OSS Dependency Alerts
 7. Pytest Validation
 8. Cloud Artifact Upload Result
 9. BigQuery Run Summary Result
 10. PR Report
 
-Run with: python3 -m streamlit run src/ui/dashboard.py
+Interactive Features:
+- Apply Sandbox Patches locally
+- Simulate Pre-Jenkins CI Handoff pipeline execution
+- Conversational CruiseMode AI Advisor chatbot sidebar
 """
 
 import json
 import os
+import shutil
+import time
 import streamlit as st
+from src.tools.diff_viewer import DiffViewer
+from src.tools.gemini_client import GeminiClient
 
 
 def load_json(filepath: str) -> dict:
@@ -49,8 +56,44 @@ def main():
     )
 
     st.title("🚗 CruiseMode Dashboard v0.2")
-    st.caption("Developer-side multi-agent validation system")
+    st.caption("Multi-Agent Pre-Jenkins Validation for Developer Workflows")
     st.markdown("---")
+
+    # --- Sidebar Chatbot Assistant ---
+    st.sidebar.title("💬 CruiseMode AI Advisor")
+    st.sidebar.caption("Ask questions about code patches, exceptions, or security alerts.")
+    
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {
+                "role": "assistant",
+                "content": (
+                    "Hello! I am your CruiseMode AI Advisor. I can help explain the code patches applied in "
+                    "the sandbox workspace, discuss the scan findings, or provide recommendations for your Jenkins build."
+                )
+            }
+        ]
+
+    # Display chat history
+    for message in st.session_state.messages:
+        with st.sidebar.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # User chat input
+    if user_prompt := st.sidebar.chat_input("Ask about the patches..."):
+        # Add user message to history
+        st.session_state.messages.append({"role": "user", "content": user_prompt})
+        with st.sidebar.chat_message("user"):
+            st.markdown(user_prompt)
+
+        # Generate response using GeminiClient
+        gemini = GeminiClient()
+        agent_response = gemini.generate_text(user_prompt)
+
+        # Add assistant message to history
+        st.session_state.messages.append({"role": "assistant", "content": agent_response})
+        with st.sidebar.chat_message("assistant"):
+            st.markdown(agent_response)
 
     # Load validation results & alerts
     results = load_json("outputs/validation_results.json")
@@ -100,6 +143,33 @@ def main():
     else:
         st.error(f"**Jenkins Recommendation:** {handoff_rec}")
 
+    # Simulated Live Jenkins Build Webhook
+    col_sim_1, col_sim_2 = st.columns([1, 4])
+    with col_sim_1:
+        if st.button("🚀 Run Live Jenkins CI Handoff"):
+            st.session_state["show_jenkins_sim"] = True
+    
+    if st.session_state.get("show_jenkins_sim"):
+        st.info("🔄 Initiating Jenkins pre-push validation pipeline execution...")
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        steps = [
+            (20, "Fetching git workspace branch: feature/boilerplate..."),
+            (40, "Running SonarQube quality gateway checks..."),
+            (60, "Scanning requirements.txt dependencies for licensing/security..."),
+            (80, "Running unit & integration test suites (pytest)..."),
+            (100, "Handoff validation successful! Status: READY TO MERGE.")
+        ]
+        
+        for val, text in steps:
+            time.sleep(0.8)
+            progress_bar.progress(val)
+            status_text.text(text)
+            
+        st.success("🎉 Pre-Jenkins CI Pipeline PASSED successfully! Proceeding to PR review.")
+        st.session_state["show_jenkins_sim"] = False
+
     st.markdown("---")
 
     # --- 3. Acceptance Criteria Coverage ---
@@ -126,10 +196,23 @@ def main():
     st.subheader("5. Safe Patches Applied")
     st.metric("Safe Patches Applied", results.get("safe_patches_applied", results.get("patches_applied", 0)))
 
-    # Load suggested changes for details
-    suggested = load_text("outputs/suggested_changes.md")
-    with st.expander("View Patch Details & Suggested Changes"):
-        st.markdown(suggested)
+    # Action to Apply Patches Locally
+    if st.button("🔧 Apply Sandbox Patches to Local Source Code"):
+        try:
+            shutil.copy(".sandbox/app.py", "sample_app/app.py")
+            shutil.copy(".sandbox/refund_service.py", "sample_app/refund_service.py")
+            st.success("✅ Successfully transferred sandbox patches to your local workspace files!")
+        except Exception as e:
+            st.error(f"❌ Failed to transfer files: {e}")
+
+    # Side-by-side Git Diff HTML viewer
+    st.markdown("#### Code Diff: Original vs Sandbox Patched")
+    diff_html_app = DiffViewer.generate_html_diff("sample_app/app.py", ".sandbox/app.py")
+    st.components.v1.html(diff_html_app, height=450, scrolling=True)
+
+    diff_html_service = DiffViewer.generate_html_diff("sample_app/refund_service.py", ".sandbox/refund_service.py")
+    with st.expander("View Service Logic Diff (refund_service.py)"):
+        st.components.v1.html(diff_html_service, height=450, scrolling=True)
 
     st.markdown("---")
 

@@ -1,6 +1,6 @@
 # CruiseMode PR Report
 
-**Generated:** 2026-07-05 23:00:02 UTC
+**Generated:** 2026-07-06 02:20:36 UTC
 **Feature:** Refund API Validation
 **Recommendation:** `READY_WITH_ALERTS`
 
@@ -86,7 +86,7 @@ OSS dependency findings are surfaced as alerts, not auto-patched or treated as l
 - **Passed:** 9/9
 - **Failed:** 0
 - **Errors:** 0
-- **Duration:** 0.3s
+- **Duration:** 0.36s
 
 ---
 

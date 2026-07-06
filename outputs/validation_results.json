@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-05T23:00:02.158538+00:00",
+  "timestamp": "2026-07-06T02:20:36.729050+00:00",
   "feature": "Refund API",
   "recommendation": "READY_WITH_ALERTS",
   "final_status": "READY_WITH_ALERTS",
@@ -29,8 +29,8 @@
     "failed": 0,
     "errors": 0,
     "return_code": 0,
-    "duration_seconds": 0.3,
-    "stdout": "============================= test session starts ==============================\nplatform darwin -- Python 3.9.6, pytest-8.4.2, pluggy-1.6.0 -- /Library/Developer/CommandLineTools/usr/bin/python3\ncachedir: .pytest_cache\nrootdir: /Users/susmithajejigari/cruisemode\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, timeout-2.4.0\ncollecting ... collected 9 items\n\ngenerated_tests/test_refund_api.py::TestRefundAPI::test_successful_refund PASSED [ 11%]\ngenerated_tests/test_refund_api.py::TestRefundAPI::test_invalid_amount_returns_400 PASSED [ 22%]\ngenerated_tests/test_refund_api.py::TestRefundAPI::test_pending_payment_returns_409 PASSED [ 33%]\ngenerated_tests/test_refund_api.py::TestPIISafety::test_card_number_not_in_response PASSED [ 44%]\ngenerated_tests/test_refund_validation.py::TestRefundAmountValidation::test_valid_refund_amount PASSED [ 55%]\ngenerated_tests/test_refund_validation.py::TestRefundAmountValidation::test_zero_refund_amount_rejected PASSED [ 66%]\ngenerated_tests/test_refund_validation.py::TestRefundAmountValidation::test_negative_refund_amount_rejected PASSED [ 77%]\ngenerated_tests/test_refund_validation.py::TestPaymentStatusValidation::test_completed_payment_allowed PASSED [ 88%]\ngenerated_tests/test_refund_validation.py::TestPaymentStatusValidation::test_pending_payment_returns_conflict PASSED [100%]\n\n============================== 9 passed in 0.15s ===============================\n",
+    "duration_seconds": 0.36,
+    "stdout": "============================= test session starts ==============================\nplatform darwin -- Python 3.9.6, pytest-8.4.2, pluggy-1.6.0 -- /Library/Developer/CommandLineTools/usr/bin/python3\ncachedir: .pytest_cache\nrootdir: /Users/susmithajejigari/cruisemode\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, timeout-2.4.0\ncollecting ... collected 9 items\n\ngenerated_tests/test_refund_api.py::TestRefundAPI::test_successful_refund PASSED [ 11%]\ngenerated_tests/test_refund_api.py::TestRefundAPI::test_invalid_amount_returns_400 PASSED [ 22%]\ngenerated_tests/test_refund_api.py::TestRefundAPI::test_pending_payment_returns_409 PASSED [ 33%]\ngenerated_tests/test_refund_api.py::TestPIISafety::test_card_number_not_in_response PASSED [ 44%]\ngenerated_tests/test_refund_validation.py::TestRefundAmountValidation::test_valid_refund_amount PASSED [ 55%]\ngenerated_tests/test_refund_validation.py::TestRefundAmountValidation::test_zero_refund_amount_rejected PASSED [ 66%]\ngenerated_tests/test_refund_validation.py::TestRefundAmountValidation::test_negative_refund_amount_rejected PASSED [ 77%]\ngenerated_tests/test_refund_validation.py::TestPaymentStatusValidation::test_completed_payment_allowed PASSED [ 88%]\ngenerated_tests/test_refund_validation.py::TestPaymentStatusValidation::test_pending_payment_returns_conflict PASSED [100%]\n\n============================== 9 passed in 0.20s ===============================\n",
     "stderr": ""
   },
   "generated_tests": 8
