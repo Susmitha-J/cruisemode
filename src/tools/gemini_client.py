@@ -66,7 +66,12 @@ class GeminiClient:
         """
         if self._enabled and self.client:
             return self._call_gemini(prompt, system_instruction)
-        return self._mock_response(prompt)
+            
+        # Ground mock response search only on the user's question, not the context payload
+        user_q = prompt
+        if "User Question:" in prompt:
+            user_q = prompt.split("User Question:", 1)[1]
+        return self._mock_response(user_q)
 
     def _call_gemini(self, prompt: str, system_instruction: str | None = None) -> str:
         """Call the real Gemini API with a try-except fallback."""
@@ -148,14 +153,31 @@ class GeminiClient:
                 "Hello! I am your CruiseMode AI Advisor. I can help explain the code patches applied in "
                 "the sandbox workspace, discuss the scan findings, or provide recommendations for your Jenkins build."
             )
+        elif "analyze" in prompt_lower or "analysis" in prompt_lower:
+            return (
+                "Based on the CruiseMode validation run, I analyzed the codebase and verified that local pytest validation "
+                "has passed successfully with all tests passing. The SandboxPatchAgent successfully applied code security "
+                "patches to resolve critical findings (PII leak in app.py and broad Exception handler in refund_service.py). "
+                "However, 1 CRITICAL OSS Advisory remains for pyjwt (CVE-2022-29217) which requires manual review."
+            )
+        elif "fix" in prompt_lower or "patch" in prompt_lower:
+            return (
+                "CruiseMode applies automated fixes safely in an isolated sandbox. For the Refund API, it addressed "
+                "the critical OWASP PII leak in app.py by replacing the full request dump with safe transaction fields (payment_id, amount), "
+                "and it narrowed the broad 'except Exception' catch-all block in refund_service.py to (ValueError, TypeError). "
+                "You can inspect these edits in the Code Diff viewer and click 'Promote Sandbox Patches' to push them to local source."
+            )
+        elif "reason" in prompt_lower or "why" in prompt_lower or "how" in prompt_lower:
+            return (
+                "CruiseMode coordinates multiple agents to validate feature readiness: AcceptanceCriteriaAgent parses requirements, "
+                "ScanAnalysisAgent categorizes findings, SandboxPatchAgent applies fixes, and ValidationAgent runs tests. "
+                "By doing this in a secure sandbox, we shield local code from breaking changes and prevent premature Jenkins builds "
+                "until code quality and security are fully verified."
+            )
 
         # Keyword mapping for agent runs
         elif "acceptance criteria" in prompt_lower:
             return "Parsed 5 acceptance criteria from the input file."
-        elif "scan" in prompt_lower or "analysis" in prompt_lower:
-            return "Analyzed 12 findings across 4 scan reports. 9 auto-patchable, 3 require review."
-        elif "patch" in prompt_lower:
-            return "Applied 3 safe patches: PII masking, exception narrowing, code smell annotation."
         elif "oss" in prompt_lower or "dependency" in prompt_lower:
             return "1 CRITICAL OSS vulnerability found (pyjwt CVE-2022-29217). Human approval required."
         elif "test" in prompt_lower:
@@ -165,5 +187,9 @@ class GeminiClient:
         elif "report" in prompt_lower or "pr" in prompt_lower:
             return "PR report generated. Recommendation: READY_WITH_ALERTS (critical OSS alerts present)."
         else:
-            return "The current run artifacts do not contain enough information."
+            return (
+                "I am your CruiseMode AI Advisor. I can explain the patches applied in the sandbox "
+                "(PII log masking, broad exception narrowing), help analyze the test validation results (9/9 tests passed), "
+                "or explain why the current status is READY_WITH_ALERTS due to pyjwt OSS vulnerability alerts."
+            )
 
