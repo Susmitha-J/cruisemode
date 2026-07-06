@@ -68,36 +68,100 @@ def setup_demo_files(case_name: str, repo_url: str = "", custom_ac: str = ""):
 
     if case_name == "Refund API (Municipal Finance Service)":
         # Write default app files
+        with open("sample_app/models.py", "w") as f:
+            f.write(
+                "\"\"\"\n"
+                "Pydantic models for the Refund API sample application.\n"
+                "\"\"\"\n\n"
+                "from pydantic import BaseModel, Field\n"
+                "from enum import Enum\n"
+                "from typing import Optional\n\n\n"
+                "class PaymentStatus(str, Enum):\n"
+                "    COMPLETED = \"completed\"\n"
+                "    PENDING = \"pending\"\n"
+                "    FAILED = \"failed\"\n"
+                "    CANCELLED = \"cancelled\"\n\n\n"
+                "class RefundRequest(BaseModel):\n"
+                "    payment_id: str = Field(..., description=\"Unique payment identifier\")\n"
+                "    payment_status: PaymentStatus = Field(..., description=\"Current payment status\")\n"
+                "    amount: float = Field(..., description=\"Refund amount in USD\")\n"
+                "    customer_email: str = Field(..., description=\"Customer's email address\")\n"
+                "    card_number: str = Field(..., description=\"Customer's card number\")\n\n\n"
+                "class RefundResponse(BaseModel):\n"
+                "    refund_id: str = Field(..., description=\"Generated refund identifier\")\n"
+                "    payment_id: str = Field(..., description=\"Original payment identifier\")\n"
+                "    status: str = Field(..., description=\"Refund status\")\n"
+                "    amount: float = Field(..., description=\"Refunded amount\")\n"
+                "    message: str = Field(..., description=\"Status message\")\n"
+            )
         with open("sample_app/app.py", "w") as f:
             f.write(
                 "import logging\n"
                 "from fastapi import FastAPI, HTTPException\n"
-                "from sample_app.refund_service import process_refund\n"
-                "app = FastAPI()\n"
-                "@app.post('/refund')\n"
-                "def refund(payment_id: str, amount: float):\n"
-                "    # CC-002: Hardcoded logging of sensitive card data\n"
-                "    logging.info(f'Processing refund for card: 4111-2222-3333-4444, amount: {amount}')\n"
-                "    try:\n"
-                "        return process_refund(payment_id, amount)\n"
-                "    except Exception:\n"
-                "        # CC-001: Catching broad exceptions\n"
-                "        raise HTTPException(status_code=500, detail='Internal error')\n"
+                "from sample_app.models import RefundRequest, RefundResponse\n"
+                "from sample_app.refund_service import process_refund\n\n"
+                "logging.basicConfig(level=logging.INFO)\n"
+                "logger = logging.getLogger(__name__)\n\n"
+                "app = FastAPI(title=\"Refund API\")\n\n"
+                "@app.post(\"/refund\", response_model=RefundResponse)\n"
+                "async def create_refund(request: RefundRequest):\n"
+                "    # ⚠️ CruiseMode target: UNSAFE PII LOGGING\n"
+                "    logger.info(\"Received refund request: %s\", request.model_dump())\n"
+                "    result = process_refund(request)\n"
+                "    if result[\"code\"] == 400:\n"
+                "        raise HTTPException(status_code=400, detail=result[\"message\"])\n"
+                "    elif result[\"code\"] == 409:\n"
+                "        raise HTTPException(status_code=409, detail=result[\"message\"])\n"
+                "    elif result[\"code\"] == 500:\n"
+                "        raise HTTPException(status_code=500, detail=result[\"message\"])\n"
+                "    return RefundResponse(\n"
+                "        refund_id=result[\"refund_id\"],\n"
+                "        payment_id=result[\"payment_id\"],\n"
+                "        status=result[\"status\"],\n"
+                "        amount=result[\"amount\"],\n"
+                "        message=result[\"message\"],\n"
+                "    )\n"
             )
         with open("sample_app/refund_service.py", "w") as f:
             f.write(
-                "def process_refund(payment_id: str, amount: float):\n"
-                "    if amount <= 0:\n"
-                "        raise ValueError('Invalid refund amount')\n"
-                "    return {'status': 'success', 'payment_id': payment_id, 'refund_amount': amount}\n"
+                "import logging\n"
+                "import uuid\n"
+                "from sample_app.models import RefundRequest, PaymentStatus\n\n"
+                "logger = logging.getLogger(__name__)\n\n"
+                "def process_refund(request: RefundRequest) -> dict:\n"
+                "    try:\n"
+                "        # --- CruiseMode target: broad exception handling wraps everything ---\n"
+                "        if request.amount <= 0:\n"
+                "            return {\"status\": \"error\", \"message\": \"Refund amount must be positive.\", \"code\": 400}\n"
+                "        if request.payment_status == PaymentStatus.PENDING:\n"
+                "            return {\"status\": \"conflict\", \"message\": \"Cannot refund pending.\", \"code\": 409}\n"
+                "        refund_id = f\"RF-{uuid.uuid4().hex[:8].upper()}\"\n"
+                "        return {\n"
+                "            \"status\": \"success\",\n"
+                "            \"refund_id\": refund_id,\n"
+                "            \"payment_id\": request.payment_id,\n"
+                "            \"amount\": request.amount,\n"
+                "            \"message\": \"Refund processed successfully.\",\n"
+                "            \"code\": 200,\n"
+                "        }\n"
+                "    except Exception as e:\n"
+                "        logger.error(\"Unexpected error: %s\", str(e))\n"
+                "        return {\"status\": \"error\", \"message\": \"Internal error\", \"code\": 500}\n"
             )
         # Write requirements
         with open("inputs/acceptance_criteria.md", "w") as f:
             f.write(
-                "# Acceptance Criteria - Refund API\n\n"
-                "- AC-1: Refund amount must be positive.\n"
-                "- AC-2: Cannot refund pending payments.\n"
-                "- AC-3: Mask all credit card numbers in transaction logs.\n"
+                "# Acceptance Criteria — Refund API Feature\n\n"
+                "## AC-001: Refund Amount Validation\n"
+                "- Refund amount must be greater than zero.\n"
+                "- Requests with zero or negative amounts must return HTTP 400.\n\n"
+                "## AC-002: Completed Payment Requirement\n"
+                "- Refund is allowed only for payments with status `completed`.\n\n"
+                "## AC-003: Pending Payment Conflict\n"
+                "- Pending payments must return HTTP 409 (Conflict).\n\n"
+                "## AC-004: PII Logging Safety\n"
+                "- Logs must NOT expose customer email.\n"
+                "- Logs must NOT expose card number.\n"
             )
         # Write scan reports
         with open("inputs/owasp_scan_report.json", "w") as f:
@@ -105,12 +169,12 @@ def setup_demo_files(case_name: str, repo_url: str = "", custom_ac: str = ""):
                 "project": "Refund API",
                 "findings": [
                     {
-                        "id": "SEC-001",
+                        "id": "OWASP-001",
                         "severity": "CRITICAL",
                         "type": "PII_LEAK",
                         "message": "Potential PII leak: Logging credentials or card details detected in source code.",
                         "file": "sample_app/app.py",
-                        "line": 8,
+                        "line": 15,
                         "auto_patchable": True
                     }
                 ]
@@ -124,8 +188,8 @@ def setup_demo_files(case_name: str, repo_url: str = "", custom_ac: str = ""):
                         "severity": "WARNING",
                         "type": "BROAD_EXCEPTION",
                         "message": "Do not catch broad Exception objects directly. Catch specific targets.",
-                        "file": "sample_app/app.py",
-                        "line": 11,
+                        "file": "sample_app/refund_service.py",
+                        "line": 20,
                         "auto_patchable": True
                     }
                 ]
