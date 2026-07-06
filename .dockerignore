@@ -1,0 +1,10 @@
+.sandbox/
+.venv/
+.pytest_cache/
+__pycache__/
+*.pyc
+.git/
+.env
+.gitignore
+README.md
+tests/

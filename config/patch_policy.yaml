@@ -1,0 +1,49 @@
+# Patch Policy Configuration
+# Defines what CruiseMode is allowed to auto-patch vs. flag for human review
+
+auto_patch:
+  pii_logging:
+    allowed: true
+    description: "Mask or remove PII from log statements"
+    strategy: "replace_with_masked"
+    mask_fields:
+      - "email"
+      - "card_number"
+      - "account_number"
+      - "ssn"
+    mask_patterns:
+      - "request body"
+      - "full request"
+
+  clean_code:
+    allowed: true
+    description: "Fix simple clean code issues (unused imports, broad exceptions)"
+    max_complexity: "simple"
+
+  owasp_validation:
+    allowed: true
+    description: "Add missing input validation for common OWASP issues"
+    max_complexity: "simple"
+
+  sonarqube_smell:
+    allowed: true
+    description: "Fix simple code smells flagged by SonarQube"
+    max_complexity: "simple"
+
+never_auto_patch:
+  oss_dependency:
+    allowed: false
+    description: "OSS dependency issues require human review before any changes"
+    action: "notify_and_block"
+    reason: "Dependency upgrades may introduce breaking changes"
+
+  architecture:
+    allowed: false
+    description: "Architectural changes require human review"
+    action: "flag_for_review"
+
+sandbox_rules:
+  modify_only_sandbox: true
+  never_modify_original: true
+  record_all_changes: true
+  generate_diff: true

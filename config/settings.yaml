@@ -1,0 +1,64 @@
+# CruiseMode Settings
+# Global configuration for the CruiseMode multi-agent validation system
+
+project:
+  name: "CruiseMode"
+  version: "0.1.0"
+  description: "Developer-side multi-agent validation system"
+
+paths:
+  sample_app: "sample_app"
+  sandbox_workspace: ".sandbox"
+  inputs: "inputs"
+  outputs: "outputs"
+  generated_tests: "generated_tests"
+
+agents:
+  acceptance_criteria:
+    enabled: true
+    input_file: "inputs/acceptance_criteria.md"
+  scan_analysis:
+    enabled: true
+    report_files:
+      clean_code: "inputs/clean_code_report.json"
+      owasp: "inputs/owasp_scan_report.json"
+      sonarqube: "inputs/sonarqube_report.json"
+      oss: "inputs/oss_scan_report.json"
+  sandbox_patch:
+    enabled: true
+    auto_patch_categories:
+      - pii_logging
+      - clean_code
+      - owasp_validation
+      - sonarqube_smell
+    skip_patch_categories:
+      - oss_dependency
+  oss_advisor:
+    enabled: true
+    require_human_approval_severities:
+      - HIGH
+      - CRITICAL
+  test_generation:
+    enabled: true
+    test_types:
+      - unit
+      - api
+  validation:
+    enabled: true
+    runner: "pytest"
+  pr_report:
+    enabled: true
+
+# Future integrations (not active in v0.1)
+integrations:
+  gemini:
+    enabled: false  # Set to true once GEMINI_API_KEY is configured
+    model: "gemini-2.0-flash"
+  gcs:
+    enabled: false
+  bigquery:
+    enabled: false
+  jenkins:
+    enabled: false
+  github:
+    enabled: false

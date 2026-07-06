@@ -1,0 +1,58 @@
+{
+  "report_type": "oss_dependency",
+  "tool": "OSS Dependency Scanner / CruiseMode",
+  "timestamp": "2026-07-05T10:15:00Z",
+  "target": "sample_app/requirements.txt",
+  "findings": [
+    {
+      "id": "OSS-001",
+      "severity": "CRITICAL",
+      "category": "oss_dependency",
+      "package": "pyjwt",
+      "installed_version": "1.7.1",
+      "fixed_version": "2.4.0",
+      "cve": "CVE-2022-29217",
+      "cvss_score": 9.8,
+      "description": "PyJWT before 2.4.0 allows attackers to bypass algorithm verification. An attacker can craft a token with algorithm 'none' and bypass signature verification, leading to authentication bypass.",
+      "recommendation": "Upgrade pyjwt to >= 2.4.0. WARNING: This is a major version upgrade and may introduce breaking API changes. Requires human review.",
+      "auto_patchable": false,
+      "requires_human_approval": true
+    },
+    {
+      "id": "OSS-002",
+      "severity": "MEDIUM",
+      "category": "oss_dependency",
+      "package": "requests",
+      "installed_version": "2.25.0",
+      "fixed_version": "2.31.0",
+      "cve": "CVE-2023-32681",
+      "cvss_score": 5.9,
+      "description": "Requests library before 2.31.0 may leak Proxy-Authorization headers to destination servers when redirected to an HTTPS endpoint.",
+      "recommendation": "Upgrade requests to >= 2.31.0.",
+      "auto_patchable": false,
+      "requires_human_approval": false
+    },
+    {
+      "id": "OSS-003",
+      "severity": "LOW",
+      "category": "oss_dependency",
+      "package": "urllib3",
+      "installed_version": "1.26.5",
+      "fixed_version": "1.26.18",
+      "cve": "CVE-2023-45803",
+      "cvss_score": 3.7,
+      "description": "urllib3 before 1.26.18 may include request body in cross-origin redirects.",
+      "recommendation": "Upgrade urllib3 to >= 1.26.18.",
+      "auto_patchable": false,
+      "requires_human_approval": false
+    }
+  ],
+  "summary": {
+    "total_findings": 3,
+    "critical": 1,
+    "high": 0,
+    "medium": 1,
+    "low": 1,
+    "info": 0
+  }
+}
