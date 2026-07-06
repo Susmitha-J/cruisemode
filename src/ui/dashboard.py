@@ -3,13 +3,16 @@ from __future__ import annotations
 """
 CruiseMode Streamlit Dashboard v0.2 (Hackathon Scaling Edition)
 
-Two Tab Layout:
+Three Tab Layout:
 - Tab 1: 🚗 Active Validation Run
   Displays the results of a CruiseMode workflow run with safety controls,
   visual code diffs, simulated Jenkins handoff simulation, and artifact-grounded AI Advisor chatbot sidebar.
 - Tab 2: ⚡ NVIDIA RAPIDS Telemetry Analytics
   Simulates a workspace with 50,000 historical code scans/validation logs.
   Benchmarks standard CPU pandas vs NVIDIA GPU cuDF to prove acceleration impact.
+- Tab 3: 🔮 Future Roadmap
+  Displays interactive demos, diagrams, and explanations of the v1.0 backlog
+  (Intelligent patching, LangGraph orchestration, Docker sandboxing, etc.).
 """
 
 import json
@@ -139,8 +142,12 @@ def main():
             with st.sidebar.chat_message("assistant"):
                 st.markdown(agent_response)
 
-    # --- Two Tab Navigation Layout ---
-    tab_run, tab_telemetry = st.tabs(["🚗 Active Validation Run", "⚡ NVIDIA RAPIDS Telemetry Analytics"])
+    # --- Three Tab Navigation Layout ---
+    tab_run, tab_telemetry, tab_roadmap = st.tabs([
+        "🚗 Active Validation Run", 
+        "⚡ NVIDIA RAPIDS Telemetry Analytics",
+        "🔮 Future Roadmap"
+    ])
 
     # =========================================================================
     # TAB 1: ACTIVE VALIDATION RUN
@@ -378,7 +385,7 @@ def main():
 
         st.info(
             "💡 **Decision Bottleneck:** Running safety audits and trend reports across thousands of municipal repositories "
-            "causes severe data processing lag on standard CPUs. Transitioning the pandas pipeline to GPU-accelerated cuDF "
+            "causes data processing lag on standard CPUs. Transitioning the pandas pipeline to GPU-accelerated cuDF "
             "solves this data bottleneck, providing real-time decision intelligence for city and enterprise stakeholders."
         )
 
@@ -422,6 +429,93 @@ def main():
             }),
             use_container_width=True
         )
+
+    # =========================================================================
+    # TAB 3: FUTURE ROADMAP
+    # =========================================================================
+    with tab_roadmap:
+        st.subheader("🔮 CruiseMode v1.0 Production Roadmap")
+        st.caption("Future extensions and architectural upgrades to graduate CruiseMode into a production-grade agentic fleet.")
+        st.markdown("---")
+
+        col_r1, col_r2 = st.columns(2)
+
+        with col_r1:
+            st.markdown("### 1. 🧠 Gemini AI-Powered Intelligent Patching")
+            st.write("Transition from regex-based rule templates to contextual, zero-shot LLM refactoring.")
+            snippet = st.text_area(
+                "Input code snippet to patch (try entering code with broad exceptions):",
+                "try:\n    perform_payment()\nexcept Exception:\n    log('failed')",
+                height=100
+            )
+            if st.button("🔧 Test Intelligent Patching (Simulation)"):
+                st.info("Sending code snippet to Gemini model...")
+                time.sleep(1.0)
+                st.success("Gemini patched the code successfully!")
+                st.code(
+                    "try:\n    perform_payment()\nexcept (PaymentError, ConnectionError) as e:\n    log(f'Payment execution failed: {e}')\n    raise",
+                    language="python"
+                )
+
+            st.markdown("---")
+
+            st.markdown("### 2. 🔗 Real Jenkins Pipeline Integration")
+            st.write("Direct triggers using Jenkins API webhooks to invoke job builds automatically after passing pre-push checks.")
+            st.code("POST https://jenkins.municipal.gov/job/cruisemode-pipeline/buildWithParameters?token=BUILD_TOKEN&branch=feature/boilerplate", language="bash")
+            st.caption("Status: API Client configured in config/settings.yaml (ready for connection)")
+
+            st.markdown("---")
+
+            st.markdown("### 3. 🐙 GitHub PR Auto-Creation")
+            st.write("Automatically create a GitHub Pull Request with the suggested safe sandbox patches.")
+            if st.button("Simulate Auto-Creating GitHub PR"):
+                st.info("🔄 Staging files and creating branch 'feature/boilerplate-patches'...")
+                time.sleep(0.6)
+                st.info("📤 Pushing patches to origin...")
+                time.sleep(0.6)
+                st.success("🎉 Pull Request #42 Created Successfully!")
+                st.markdown("[🔗 Visit Pull Request #42 on GitHub](https://github.com/Susmitha-J/cruisemode/pull/42) *(Simulated)*")
+
+        with col_r2:
+            st.markdown("### 4. 📈 BigQuery Trend Dashboards with RAPIDS")
+            st.write("Load millions of telemetry events to BigQuery and query them instantaneously using Spark RAPIDS for team analytics.")
+            st.code("""
+SELECT service_name, COUNT(run_id) as total_runs, AVG(duration_seconds)
+FROM `cruisemode-501605.cruisemode.validation_runs`
+GROUP BY service_name
+            """, language="sql")
+            st.caption("Integrate Looker dashboard with GPU-accelerated BigQuery endpoints.")
+
+            st.markdown("---")
+
+            st.markdown("### 5. 🐳 Docker-Based Sandbox Isolation")
+            st.write("Upgrade from local folders to dynamic, ephemeral Docker containers to isolate test execution fully from the developer's filesystem.")
+            st.code("docker run --rm -v $(pwd):/workspace -w /workspace python:3.9-slim pytest generated_tests/", language="bash")
+
+            st.markdown("---")
+
+            st.markdown("### 6. 🕸️ LangGraph-Based Agent Orchestration")
+            st.write("Transition the sequential pipeline into an agentic state-graph with feedback loops (e.g., ValidationAgent letting TestGenerationAgent rewrite tests if they fail).")
+            
+            # Simple ASCII Graph representing the LangGraph state flow
+            st.code("""
+       [Acceptance Criteria]
+                │
+                ▼
+      [Scan Analysis Agent]
+                │
+                ▼
+      [Sandbox Patch Agent] <───┐ (Feedback on failure)
+                │               │
+                ▼               │
+     [Test Generation Agent] ───┤
+                │               │
+                ▼               │
+       [Validation Agent] ──────┘
+                │
+                ▼ (On Success)
+       [PR Report Agent]
+            """, language="text")
 
 
 if __name__ == "__main__":
