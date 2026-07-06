@@ -142,12 +142,10 @@ CruiseMode detects and patches these in the sandbox.
 
 ## 🔮 Future Roadmap
 
-- [ ] Gemini AI-powered intelligent patching
 - [ ] Real Jenkins pipeline integration
 - [ ] GitHub PR auto-creation
 - [ ] BigQuery trend dashboards with RAPIDS
-- [ ] Docker-based sandbox isolation
-- [ ] LangGraph-based agent orchestration
+
 
 ---
 

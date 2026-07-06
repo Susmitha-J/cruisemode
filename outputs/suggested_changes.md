@@ -2,23 +2,23 @@
 
 **Total Patches Applied:** 2
 
-## PATCH-001: clean_code
+## PATCH-001: pii_logging
 
-**File:** `.sandbox/service.py`
+**File:** `.sandbox/app.py`
 
-Narrowed broad 'except Exception' to specific types in service.py
+Flagged potential PII/secret in log statement in app.py
 
-**Related findings:** CC-001
+**Related findings:** SEC-001
 
 ---
 
-## PATCH-002: pii_logging
+## PATCH-002: clean_code
 
-**File:** `.sandbox/service.py`
+**File:** `.sandbox/refund_service.py`
 
-Flagged potential PII/secret in log statement in service.py
+Narrowed broad 'except Exception' to specific types in refund_service.py
 
-**Related findings:** SEC-002
+**Related findings:** CC-002
 
 ---
 

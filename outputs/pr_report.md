@@ -1,8 +1,8 @@
 # CruiseMode PR Report
 
-**Generated:** 2026-07-06 09:04:07 UTC
+**Generated:** 2026-07-06 15:25:20 UTC
 **Feature:** Refund API Validation
-**Recommendation:** `BLOCKED`
+**Recommendation:** `READY_WITH_ALERTS`
 
 ---
 
@@ -38,10 +38,10 @@ and ran local validation.
 
 | Patch ID | Type | Description |
 |----------|------|-------------|
-| PATCH-001 | clean_code | Narrowed broad 'except Exception' to specific types in service.py |
-| PATCH-002 | pii_logging | Flagged potential PII/secret in log statement in service.py |
+| PATCH-001 | pii_logging | Flagged potential PII/secret in log statement in app.py |
+| PATCH-002 | clean_code | Narrowed broad 'except Exception' to specific types in refund_service.py |
 
-**Files Modified:** 1
+**Files Modified:** 2
 
 ---
 
@@ -55,46 +55,45 @@ No OSS dependency alerts.
 ## 6. Generated Tests
 
 - **Test files:** 2
-- **Total tests:** 2
+- **Total tests:** 3
 - **Test types:** smoke, quality
 
 ---
 
 ## 7. Local Validation Results
 
-- **Status:** ERROR
-- **Passed:** 0/2
+- **Status:** PASSED
+- **Passed:** 12/12
 - **Failed:** 0
-- **Errors:** 2
-- **Duration:** 0.59s
+- **Errors:** 0
+- **Duration:** 0.45s
 
 ---
 
 ## 8. Remaining Review Items
 
 - ⚠️ 1 unresolved code/security finding(s) remain:
-  - `SEC-001` (CRITICAL) — Token leak in logging at line 7 in sample_app/service.py
+  - `CC-001` (WARNING) — Broad except at line 11 in sample_app/service.py
 - 🔧 2 safe patch(es) applied — human review recommended before Jenkins
 
 ---
 
 ## 9. Jenkins Handoff Recommendation
 
-**Handoff Recommendation:** Do not trigger Jenkins. Resolve blockers first.
+**Handoff Recommendation:** Safe to trigger Jenkins feature build, but review OSS and non-blocking alerts. Dependency upgrades should be handled with regression testing and security review.
 
 ---
 
 ## 10. Suggested PR Summary
 
-> **Refund API Feature — Pre-Jenkins Validation Complete (BLOCKED)**
+> **Refund API Feature — Pre-Jenkins Validation Complete (Ready with Alerts)**
 >
-> CruiseMode automated validation has completed. 2 safe patches were applied (PII logging, clean code, code smells). 2 tests were generated and some require review.
+> CruiseMode local validation passed and safe sandbox patches were applied. Generated unit/API tests passed. A critical OSS dependency alert was detected and should be reviewed through the normal dependency and regression process. CruiseMode recommends triggering Jenkins with awareness of the OSS alert.
 
 ---
 
 ## 11. Final Recommendation
 
-### `BLOCKED`
+### `READY_WITH_ALERTS`
 
-🚫 **BLOCKED** — One or more critical issues prevent this feature from proceeding:
-tests failing, sandbox validation failure, unresolved sensitive data leak, or critical code/security issue.
+🟠 **READY_WITH_ALERTS** — Local tests pass, sandbox validation passes, and safe patches pass. OSS dependency alerts or non-blocking clean-code/SonarQube items exist. Proceed with awareness of alerts.
