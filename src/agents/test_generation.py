@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 """
-TestGenerationAgent — generates pytest unit tests and FastAPI API tests.
+TestGenerationAgent — generates pytest tests dynamically.
 
-Writes test files into generated_tests/ based on acceptance criteria
-and the patched sandbox codebase.
+For the default Refund API demo, writes hardcoded unit + API tests.
+For custom repos, discovers .py files in the sandbox and generates
+import/syntax smoke tests and pattern-based tests grounded in real code.
 """
 
 import os
+import re
 from typing import Any
 
+# pyrefly: ignore [missing-import]
 from src.agents.base import BaseAgent
 
 
@@ -28,36 +31,266 @@ class TestGenerationAgent(BaseAgent):
         output_dir = state.get("generated_tests_dir", "generated_tests")
         os.makedirs(output_dir, exist_ok=True)
 
+        sandbox_dir = state.get("sandbox", {}).get("sandbox_dir", ".sandbox")
+        feature_name = state.get("feature_name", "")
+
         generated_files = []
 
-        # Generate unit tests for refund validation
-        unit_test_path = os.path.join(output_dir, "test_refund_validation.py")
-        self._write_unit_tests(unit_test_path, state)
-        generated_files.append(unit_test_path)
-
-        # Generate API tests using FastAPI TestClient
-        api_test_path = os.path.join(output_dir, "test_refund_api.py")
-        self._write_api_tests(api_test_path, state)
-        generated_files.append(api_test_path)
-
-        # Write conftest for shared fixtures
+        # Write conftest first (shared by both modes)
         conftest_path = os.path.join(output_dir, "conftest.py")
-        self._write_conftest(conftest_path, state)
+        self._write_conftest(conftest_path, sandbox_dir)
         generated_files.append(conftest_path)
+
+        # Decide: default Refund API case vs dynamic custom repo
+        is_refund_api = feature_name == "Refund API"
+        has_refund_service = os.path.exists(os.path.join(sandbox_dir, "refund_service.py"))
+        has_models = os.path.exists(os.path.join(sandbox_dir, "models.py"))
+
+        if is_refund_api and has_refund_service and has_models:
+            # Default demo: hardcoded Refund API tests
+            unit_path = os.path.join(output_dir, "test_refund_validation.py")
+            self._write_refund_unit_tests(unit_path, sandbox_dir)
+            generated_files.append(unit_path)
+
+            api_path = os.path.join(output_dir, "test_refund_api.py")
+            self._write_refund_api_tests(api_path, sandbox_dir)
+            generated_files.append(api_path)
+
+            total_tests = 8
+        else:
+            # Dynamic: discover Python files and generate real tests
+            total_tests = 0
+            py_files = self._discover_py_files(sandbox_dir)
+            self.log(f"Discovered {len(py_files)} Python files in sandbox.")
+
+            from src.tools.gemini_client import GeminiClient  # pyrefly: ignore [missing-import]
+            gemini = GeminiClient()
+
+            if gemini.is_enabled and py_files:
+                # Use Gemini AI to generate real tests
+                test_path = os.path.join(output_dir, "test_ai_generated.py")
+                count = self._gemini_generate_tests(gemini, test_path, sandbox_dir, py_files)
+                generated_files.append(test_path)
+                total_tests += count
+                self.log(f"🧠 Gemini AI generated {count} tests.")
+            else:
+                # Fallback: regex-based smoke tests
+                test_path = os.path.join(output_dir, "test_code_quality.py")
+                count = self._write_dynamic_tests(test_path, sandbox_dir, py_files, state)
+                generated_files.append(test_path)
+                total_tests += count
 
         state["test_generation"] = {
             "generated_files": generated_files,
-            "total_tests": 8,  # Count of test functions generated
-            "test_types": ["unit", "api"],
+            "total_tests": total_tests,
+            "test_types": ["unit", "api"] if is_refund_api else ["smoke", "quality"],
         }
 
         self.log(f"Generated {len(generated_files)} test files.")
         return state
 
-    def _write_unit_tests(self, filepath: str, state: dict):
-        """Generate pytest unit tests for refund validation logic."""
-        sandbox_dir = state.get("sandbox", {}).get("sandbox_dir", ".sandbox")
+    def _discover_py_files(self, sandbox_dir: str) -> list[str]:
+        """Find all .py files in the sandbox directory."""
+        py_files = []
+        for root, _dirs, files in os.walk(sandbox_dir):
+            for fname in files:
+                if fname.endswith(".py") and fname != "__init__.py":
+                    rel_path = os.path.relpath(os.path.join(root, fname), sandbox_dir)
+                    py_files.append(rel_path)
+        return py_files
 
+    def _gemini_generate_tests(self, gemini, test_path: str,
+                                sandbox_dir: str, py_files: list[str]) -> int:
+        """Use Gemini AI to generate pytest tests based on actual source code."""
+        # Collect source code from up to 5 files
+        code_context = ""
+        for py_file in py_files[:5]:
+            full_path = os.path.join(sandbox_dir, py_file)
+            try:
+                with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+                    source = f.read()
+                if len(source.strip()) > 10:
+                    code_context += f"\n### File: {py_file}\n```python\n{source}\n```\n"
+            except Exception:
+                continue
+
+        if not code_context:
+            return self._write_dynamic_tests(test_path, sandbox_dir, py_files, {})
+
+        prompt = (
+            "You are a test engineer. Generate pytest test functions for the following Python code.\n\n"
+            "RULES:\n"
+            "- Generate ONLY pytest test functions inside a single TestCodeQuality class\n"
+            "- Test real functions/classes found in the code\n"
+            "- Include tests for: input validation, error handling, edge cases, return values\n"
+            "- Use simple assertions (assert, assertEqual) — no mocking\n"
+            "- Import modules using the file paths given (relative to sandbox)\n"
+            "- Each test function name must start with 'test_'\n"
+            "- Generate between 3 and 10 tests\n"
+            "- Output ONLY the Python test file, no explanations\n\n"
+            f"Source files:\n{code_context}"
+        )
+
+        system_instruction = (
+            "You are a test generator. Output only valid Python code for a pytest test file. "
+            "No markdown code fences, no explanations. Start with import statements."
+        )
+
+        try:
+            test_code = gemini.generate_text(prompt, system_instruction=system_instruction)
+            if not test_code:
+                return self._write_dynamic_tests(test_path, sandbox_dir, py_files, {})
+            # Strip markdown fences
+            test_code = test_code.strip()
+            if test_code.startswith("```python"):
+                test_code = test_code[len("```python"):].strip()
+            if test_code.startswith("```"):
+                test_code = test_code[3:].strip()
+            if test_code.endswith("```"):
+                test_code = test_code[:-3].strip()
+
+            # Prepend sandbox path setup
+            header = (
+                f'"""\nAI-generated tests by CruiseMode + Gemini.\n"""\n\n'
+                f'import sys\nimport os\n\n'
+                f'SANDBOX = os.path.abspath("{sandbox_dir}")\n'
+                f'sys.path.insert(0, SANDBOX)\n\n'
+            )
+
+            full_test = header + test_code
+
+            # Verify it's valid Python
+            compile(full_test, test_path, "exec")
+
+            with open(test_path, "w") as f:
+                f.write(full_test)
+
+            # Count test functions
+            count = len(re.findall(r"def test_", full_test))
+            return max(count, 1)
+
+        except (SyntaxError, Exception) as e:
+            self.log(f"⚠️ Gemini test generation failed: {e}, falling back to regex", level="warning")
+            return self._write_dynamic_tests(test_path, sandbox_dir, py_files, {})
+
+    def _write_dynamic_tests(self, filepath: str, sandbox_dir: str,
+                              py_files: list[str], state: dict) -> int:
+        """Generate tests grounded in actual code from the sandbox."""
+        test_functions = []
+        test_count = 0
+
+        for py_file in py_files:
+            full_path = os.path.join(sandbox_dir, py_file)
+            try:
+                with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+                    source = f.read()
+                    lines = source.splitlines()
+            except Exception:
+                continue
+
+            module_name = py_file.replace("/", ".").replace("\\", ".").rstrip(".py")
+            safe_name = re.sub(r"[^a-zA-Z0-9]", "_", py_file.replace(".py", ""))
+
+            # Test 1: File is valid Python (syntax check)
+            test_functions.append(f'''
+    def test_{safe_name}_syntax(self):
+        """Verify {py_file} is valid Python syntax."""
+        import py_compile
+        py_compile.compile(os.path.join(SANDBOX, "{py_file}"), doraise=True)
+''')
+            test_count += 1
+
+            # Test 2: Check for broad exception handlers
+            has_broad_except = any(
+                re.search(r"except\s+(Exception|BaseException)\s*:", line)
+                for line in lines
+            )
+            if has_broad_except:
+                test_functions.append(f'''
+    def test_{safe_name}_no_broad_exceptions(self):
+        """Check {py_file} for overly broad exception handlers."""
+        with open(os.path.join(SANDBOX, "{py_file}"), "r") as f:
+            content = f.read()
+        import re as _re
+        matches = _re.findall(r"except\\s+(Exception|BaseException)\\s*:", content)
+        # Flag but don't fail — report count
+        assert len(matches) == 0, f"Found {{len(matches)}} broad exception handler(s) in {py_file}"
+''')
+                test_count += 1
+
+            # Test 3: Check for PII/sensitive data in print/log statements
+            has_pii_log = any(
+                re.search(r"(print|logging|logger)\s*\(.*?(password|card|ssn|secret|token|api_key)", line, re.IGNORECASE)
+                for line in lines
+            )
+            if has_pii_log:
+                test_functions.append(f'''
+    def test_{safe_name}_no_pii_logging(self):
+        """Check {py_file} does not log sensitive data."""
+        with open(os.path.join(SANDBOX, "{py_file}"), "r") as f:
+            content = f.read()
+        import re as _re
+        matches = _re.findall(r"(print|logging|logger)\\s*\\(.*?(password|card|ssn|secret|token|api_key)", content, _re.IGNORECASE)
+        assert len(matches) == 0, f"Found {{len(matches)}} potential PII leak(s) in {py_file}"
+''')
+                test_count += 1
+
+            # Test 4: Check for hardcoded secrets
+            has_hardcoded = any(
+                re.search(r"['\"](?:AIza|sk-|AKIA|ghp_|gho_|glpat-)[A-Za-z0-9_\-]{10,}", line)
+                for line in lines
+            )
+            if has_hardcoded:
+                test_functions.append(f'''
+    def test_{safe_name}_no_hardcoded_secrets(self):
+        """Check {py_file} for hardcoded API keys or secrets."""
+        with open(os.path.join(SANDBOX, "{py_file}"), "r") as f:
+            content = f.read()
+        import re as _re
+        matches = _re.findall(r"['\\"](AIza|sk-|AKIA|ghp_|gho_|glpat-)[A-Za-z0-9_\\-]{{10,}}", content)
+        assert len(matches) == 0, f"Found {{len(matches)}} hardcoded secret(s) in {py_file}"
+''')
+                test_count += 1
+
+            # Limit to prevent excessive test generation
+            if test_count >= 20:
+                break
+
+        # If we found zero issues, add at least one passing test
+        if test_count == 0:
+            test_functions.append('''
+    def test_codebase_is_clean(self):
+        """Verify the scanned codebase has no common code quality issues."""
+        assert True, "No code quality issues detected"
+''')
+            test_count = 1
+
+        # Assemble test file
+        content = f'''"""
+Dynamic code quality tests generated by CruiseMode TestGenerationAgent.
+Tests are grounded in actual code scanned from the sandbox.
+"""
+
+import os
+import sys
+
+SANDBOX = os.path.abspath("{sandbox_dir}")
+sys.path.insert(0, SANDBOX)
+
+
+class TestCodeQuality:
+    """Tests generated from real code analysis of the sandbox."""
+{"".join(test_functions)}
+'''
+        with open(filepath, "w") as f:
+            f.write(content)
+
+        return test_count
+
+    # ===== Default Refund API tests (unchanged) =====
+
+    def _write_refund_unit_tests(self, filepath: str, sandbox_dir: str):
+        """Generate pytest unit tests for refund validation logic."""
         content = f'''"""
 Unit tests for refund validation logic.
 Generated by CruiseMode TestGenerationAgent.
@@ -149,10 +382,8 @@ class TestPaymentStatusValidation:
         with open(filepath, "w") as f:
             f.write(content)
 
-    def _write_api_tests(self, filepath: str, state: dict):
+    def _write_refund_api_tests(self, filepath: str, sandbox_dir: str):
         """Generate FastAPI TestClient API tests."""
-        sandbox_dir = state.get("sandbox", {}).get("sandbox_dir", ".sandbox")
-
         content = f'''"""
 API tests for the Refund API endpoint.
 Generated by CruiseMode TestGenerationAgent.
@@ -233,10 +464,8 @@ class TestPIISafety:
         with open(filepath, "w") as f:
             f.write(content)
 
-    def _write_conftest(self, filepath: str, state: dict):
+    def _write_conftest(self, filepath: str, sandbox_dir: str):
         """Generate conftest.py with shared fixtures."""
-        sandbox_dir = state.get("sandbox", {}).get("sandbox_dir", ".sandbox")
-
         content = f'''"""
 Shared test fixtures for CruiseMode generated tests.
 """

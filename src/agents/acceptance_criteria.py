@@ -50,8 +50,9 @@ class AcceptanceCriteriaAgent(BaseAgent):
         for line in content.strip().split("\n"):
             line = line.strip()
 
-            # Match section headers like "## AC-001: Refund Amount Validation"
-            header_match = re.match(r"^##\s+(AC-\d+):\s+(.+)$", line)
+            # Match section headers like "## AC-001: Refund Amount Validation" or "## AC-1: ..."
+            # OR match list items like "- AC-1: Refund amount must be positive." or "- AC-001: ..."
+            header_match = re.match(r"^(?:##|-)\s+(AC-\d+):\s+(.+)$", line)
             if header_match:
                 # Save previous criteria if exists
                 if current_id:
@@ -61,6 +62,7 @@ class AcceptanceCriteriaAgent(BaseAgent):
                 current_desc = header_match.group(2)
                 current_items = []
             elif line.startswith("- ") and current_id:
+                # If we match a list item, but it doesn't match an AC-X identifier, treat it as a sub-item
                 current_items.append(line[2:])
 
         # Save last criteria

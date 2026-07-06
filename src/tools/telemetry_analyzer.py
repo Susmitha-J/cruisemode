@@ -29,9 +29,16 @@ class TelemetryAnalyzer:
 
     @classmethod
     def generate_mock_data(cls, num_rows: int = 50000) -> str:
-        """Generate a mock historical dataset representing smart community pre-push logs."""
+        # Check if file exists and is valid. If corrupt, remove and regenerate.
         if os.path.exists(cls.CSV_PATH):
-            return cls.CSV_PATH
+            try:
+                pd.read_csv(cls.CSV_PATH, nrows=5)
+                return cls.CSV_PATH
+            except Exception:
+                try:
+                    os.remove(cls.CSV_PATH)
+                except Exception:
+                    pass
 
         os.makedirs(os.path.dirname(cls.CSV_PATH), exist_ok=True)
         np.random.seed(42)

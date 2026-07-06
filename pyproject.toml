@@ -31,6 +31,9 @@ dev = [
     "mypy",
 ]
 
+[tool.setuptools.packages.find]
+where = ["."]
+
 [tool.pytest.ini_options]
 testpaths = ["tests", "generated_tests"]
 pythonpath = ["."]
@@ -38,3 +41,7 @@ pythonpath = ["."]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.pyrefly]
+project_includes = ["src"]
+import_roots = ["."]
