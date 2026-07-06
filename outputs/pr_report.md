@@ -1,6 +1,6 @@
 # CruiseMode PR Report
 
-**Generated:** 2026-07-06 05:13:51 UTC
+**Generated:** 2026-07-06 05:32:49 UTC
 **Feature:** Refund API Validation
 **Recommendation:** `READY_WITH_ALERTS`
 
@@ -86,7 +86,7 @@ CruiseMode does not auto-patch OSS dependencies because dependency upgrades requ
 - **Passed:** 9/9
 - **Failed:** 0
 - **Errors:** 0
-- **Duration:** 0.31s
+- **Duration:** 0.35s
 
 ---
 

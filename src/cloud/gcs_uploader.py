@@ -31,10 +31,13 @@ class GCSUploader:
 
         if self._enabled:
             logger.info(f"GCS uploader configured: gs://{self.bucket_name}")
-            # TODO: Initialize google-cloud-storage client
-            # from google.cloud import storage
-            # self.client = storage.Client(project=self.project_id)
-            # self.bucket = self.client.bucket(self.bucket_name)
+            try:
+                from google.cloud import storage
+                self.client = storage.Client(project=self.project_id)
+                self.bucket = self.client.bucket(self.bucket_name)
+            except Exception as e:
+                logger.error(f"Failed to initialize GCS client: {e}. Running in MOCK mode.")
+                self._enabled = False
         else:
             logger.info("GCS uploader running in MOCK mode (no GCP credentials).")
 
@@ -50,11 +53,14 @@ class GCSUploader:
             GCS URI string (real or mock).
         """
         if self._enabled:
-            # TODO: Implement real upload
-            # blob = self.bucket.blob(gcs_path)
-            # blob.upload_from_filename(local_path)
-            # return f"gs://{self.bucket_name}/{gcs_path}"
-            pass
+            try:
+                blob = self.bucket.blob(gcs_path)
+                blob.upload_from_filename(local_path)
+                uri = f"gs://{self.bucket_name}/{gcs_path}"
+                logger.info(f"Successfully uploaded {local_path} -> {uri}")
+                return uri
+            except Exception as e:
+                logger.error(f"Real GCS upload failed for {local_path}: {e}. Using mock fallback.")
 
         uri = f"gs://{self.bucket_name or 'mock-bucket'}/{gcs_path}"
         logger.info(f"[MOCK] Would upload {local_path} -> {uri}")
