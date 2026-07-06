@@ -632,6 +632,11 @@ def main():
             col2.metric("Auto-Patchable", scan.get("auto_patchable", 0))
             col3.metric("Requires Review", scan.get("requires_review", 0))
 
+            # Display Gemini AI analysis summary if available
+            ai_summary = results.get("scan_analysis", {}).get("ai_summary", "")
+            if ai_summary:
+                st.info(f"🧠 **Gemini AI Analysis:** {ai_summary}")
+
             st.markdown("---")
 
             # --- 5. Safe Sandbox Patches ---
@@ -643,9 +648,18 @@ def main():
 
             if st.button("🔧 Promote Reviewed Sandbox Patches to Local Source"):
                 try:
-                    shutil.copy(".sandbox/app.py", "sample_app/app.py")
-                    shutil.copy(".sandbox/refund_service.py", "sample_app/refund_service.py")
-                    st.success("✅ Reviewed sandbox patches were promoted to the local source workspace. Review and commit these changes manually.")
+                    # Dynamically copy all .py files from sandbox to sample_app
+                    promoted = 0
+                    for root, _dirs, files in os.walk(".sandbox"):
+                        for fname in files:
+                            if fname.endswith(".py"):
+                                src = os.path.join(root, fname)
+                                rel = os.path.relpath(src, ".sandbox")
+                                dst = os.path.join("sample_app", rel)
+                                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                                shutil.copy2(src, dst)
+                                promoted += 1
+                    st.success(f"✅ Promoted {promoted} patched files to the local source workspace. Review and commit these changes manually.")
                 except Exception as e:
                     st.error(f"❌ Failed to promote sandbox patches: {e}")
 

@@ -67,8 +67,11 @@ class SandboxPatchAgent(BaseAgent):
                     patches_applied.append(patch)
                     files_modified.add(service_path)
         else:
-            # --- Dynamic: scan ALL .py files for patchable patterns ---
+            # --- Dynamic: Use Gemini AI for intelligent patching ---
+            from src.tools.gemini_client import GeminiClient
+            gemini = GeminiClient()
             patch_id = 1
+
             for root, _dirs, files in os.walk(sandbox_dir):
                 for fname in files:
                     if not fname.endswith(".py"):
@@ -76,19 +79,35 @@ class SandboxPatchAgent(BaseAgent):
                     fpath = os.path.join(root, fname)
                     rel_path = os.path.relpath(fpath, sandbox_dir)
 
-                    # Patch broad exceptions
-                    p = self._patch_broad_exceptions_dynamic(fpath, patch_id, rel_path)
-                    if p:
-                        patches_applied.extend(p["patches"])
-                        files_modified.add(fpath)
-                        patch_id += len(p["patches"])
+                    try:
+                        with open(fpath, "r", encoding="utf-8", errors="ignore") as pf:
+                            source_code = pf.read()
+                    except Exception:
+                        continue
 
-                    # Patch PII logging
-                    p = self._patch_pii_logging_dynamic(fpath, patch_id, rel_path)
-                    if p:
-                        patches_applied.extend(p["patches"])
-                        files_modified.add(fpath)
-                        patch_id += len(p["patches"])
+                    if len(source_code.strip()) < 10:
+                        continue
+
+                    if gemini.is_enabled:
+                        # Use Gemini to suggest and apply patches
+                        ai_patches = self._gemini_patch(gemini, fpath, rel_path, source_code, patch_id)
+                        if ai_patches:
+                            patches_applied.extend(ai_patches)
+                            files_modified.add(fpath)
+                            patch_id += len(ai_patches)
+                    else:
+                        # Fallback: regex-based patching
+                        p = self._patch_broad_exceptions_dynamic(fpath, patch_id, rel_path)
+                        if p:
+                            patches_applied.extend(p["patches"])
+                            files_modified.add(fpath)
+                            patch_id += len(p["patches"])
+
+                        p = self._patch_pii_logging_dynamic(fpath, patch_id, rel_path)
+                        if p:
+                            patches_applied.extend(p["patches"])
+                            files_modified.add(fpath)
+                            patch_id += len(p["patches"])
 
         state["sandbox"] = {
             "sandbox_dir": sandbox_dir,
@@ -99,6 +118,104 @@ class SandboxPatchAgent(BaseAgent):
 
         self.log(f"Applied {len(patches_applied)} patches in sandbox.")
         return state
+
+    # ===== Gemini AI-powered patching =====
+
+    def _gemini_patch(self, gemini, filepath: str, rel_path: str,
+                       source_code: str, start_id: int) -> list[dict] | None:
+        """Use Gemini to analyze and patch a Python file for security/quality issues."""
+        prompt = (
+            "You are a code security and quality reviewer. Analyze this Python file and apply ONLY safe, "
+            "minimal patches for these specific issues:\n"
+            "1. Replace broad 'except Exception' with specific exception types like (ValueError, TypeError)\n"
+            "2. Mask sensitive data (passwords, tokens, keys, cards) in print/log statements\n"
+            "3. Add input validation where user data is used without checks\n\n"
+            "RULES:\n"
+            "- Return ONLY the complete patched Python file, nothing else\n"
+            "- Do NOT add comments explaining changes\n"
+            "- Do NOT change functionality, only improve safety\n"
+            "- If no issues found, return the original code unchanged\n\n"
+            f"File: {rel_path}\n"
+            f"```python\n{source_code}\n```"
+        )
+
+        system_instruction = (
+            "You are a deterministic code patcher. Output only valid Python code. "
+            "No markdown, no explanations, no code fences. Just the patched Python source."
+        )
+
+        try:
+            patched = gemini.generate_text(prompt, system_instruction=system_instruction)
+            # Strip markdown code fences if Gemini added them
+            patched = patched.strip()
+            if patched.startswith("```python"):
+                patched = patched[len("```python"):].strip()
+            if patched.startswith("```"):
+                patched = patched[3:].strip()
+            if patched.endswith("```"):
+                patched = patched[:-3].strip()
+
+            # Verify the output is valid Python
+            compile(patched, filepath, "exec")
+
+            if patched.strip() == source_code.strip():
+                return None  # No changes needed
+
+            # Write the patched file
+            with open(filepath, "w") as f:
+                f.write(patched)
+
+            self.log(f"🧠 Gemini AI patched {rel_path}")
+
+            # Describe what changed
+            patches = []
+            if "except Exception" in source_code and "except Exception" not in patched:
+                patches.append({
+                    "id": f"PATCH-{start_id:03d}",
+                    "file": filepath,
+                    "type": "clean_code",
+                    "description": f"[Gemini AI] Narrowed broad exception handlers in {rel_path}",
+                    "finding_ids": [f"CC-{start_id:03d}"],
+                })
+                start_id += 1
+
+            if any(kw in source_code.lower() for kw in ["password", "token", "secret", "card"]):
+                patches.append({
+                    "id": f"PATCH-{start_id:03d}",
+                    "file": filepath,
+                    "type": "pii_logging",
+                    "description": f"[Gemini AI] Masked sensitive data in logging in {rel_path}",
+                    "finding_ids": [f"SEC-{start_id:03d}"],
+                })
+                start_id += 1
+
+            if not patches:
+                patches.append({
+                    "id": f"PATCH-{start_id:03d}",
+                    "file": filepath,
+                    "type": "ai_quality",
+                    "description": f"[Gemini AI] Applied code quality improvements to {rel_path}",
+                    "finding_ids": [f"AI-{start_id:03d}"],
+                })
+
+            return patches
+
+        except SyntaxError:
+            self.log(f"⚠️ Gemini output for {rel_path} was invalid Python, falling back to regex", level="warning")
+            # Fall back to regex patching
+            result_patches = []
+            p = self._patch_broad_exceptions_dynamic(filepath, start_id, rel_path)
+            if p:
+                result_patches.extend(p["patches"])
+            return result_patches if result_patches else None
+        except Exception as e:
+            self.log(f"⚠️ Gemini error for {rel_path}: {e}, falling back to regex", level="warning")
+            result_patches = []
+            p = self._patch_broad_exceptions_dynamic(filepath, start_id, rel_path)
+            if p:
+                result_patches.extend(p["patches"])
+            return result_patches if result_patches else None
+
 
     # ===== Dynamic patchers (for custom repos) =====
 

@@ -91,6 +91,31 @@ class ScanAnalysisAgent(BaseAgent):
             "all_findings": all_findings,
         }
 
+        # Generate AI-powered analysis summary using Gemini
+        from src.tools.gemini_client import GeminiClient
+        gemini = GeminiClient()
+        if gemini.is_enabled and all_findings:
+            findings_text = "\n".join(
+                f"- [{f.get('severity')}] {f.get('type', f.get('category', 'UNKNOWN'))}: "
+                f"{f.get('message', 'N/A')} (file: {f.get('file', 'N/A')}, line: {f.get('line', '?')})"
+                for f in all_findings[:20]
+            )
+            prompt = (
+                f"You are a security analyst. Summarize these {len(all_findings)} code scan findings "
+                f"in 2-3 sentences. Focus on the most critical issues and actionable recommendations.\n\n"
+                f"Findings:\n{findings_text}"
+            )
+            system_instruction = (
+                "Respond in 2-3 concise sentences only. No markdown, no bullet points. "
+                "Focus on severity, affected files, and recommended actions."
+            )
+            try:
+                summary = gemini.generate_text(prompt, system_instruction=system_instruction)
+                state["scan_analysis"]["ai_summary"] = summary
+                self.log(f"🧠 Gemini AI analysis summary generated.")
+            except Exception as e:
+                self.log(f"⚠️ Gemini analysis summary failed: {e}", level="warning")
+
         self.log(
             f"Analysis complete: {len(all_findings)} findings, "
             f"{len(auto_patchable)} auto-patchable, "

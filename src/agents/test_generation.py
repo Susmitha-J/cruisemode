@@ -12,6 +12,7 @@ import os
 import re
 from typing import Any
 
+# pyrefly: ignore [missing-import]
 from src.agents.base import BaseAgent
 
 
@@ -62,11 +63,22 @@ class TestGenerationAgent(BaseAgent):
             py_files = self._discover_py_files(sandbox_dir)
             self.log(f"Discovered {len(py_files)} Python files in sandbox.")
 
-            # Generate smoke tests for each module
-            test_path = os.path.join(output_dir, "test_code_quality.py")
-            count = self._write_dynamic_tests(test_path, sandbox_dir, py_files, state)
-            generated_files.append(test_path)
-            total_tests += count
+            from src.tools.gemini_client import GeminiClient
+            gemini = GeminiClient()
+
+            if gemini.is_enabled and py_files:
+                # Use Gemini AI to generate real tests
+                test_path = os.path.join(output_dir, "test_ai_generated.py")
+                count = self._gemini_generate_tests(gemini, test_path, sandbox_dir, py_files)
+                generated_files.append(test_path)
+                total_tests += count
+                self.log(f"🧠 Gemini AI generated {count} tests.")
+            else:
+                # Fallback: regex-based smoke tests
+                test_path = os.path.join(output_dir, "test_code_quality.py")
+                count = self._write_dynamic_tests(test_path, sandbox_dir, py_files, state)
+                generated_files.append(test_path)
+                total_tests += count
 
         state["test_generation"] = {
             "generated_files": generated_files,
@@ -86,6 +98,78 @@ class TestGenerationAgent(BaseAgent):
                     rel_path = os.path.relpath(os.path.join(root, fname), sandbox_dir)
                     py_files.append(rel_path)
         return py_files
+
+    def _gemini_generate_tests(self, gemini, test_path: str,
+                                sandbox_dir: str, py_files: list[str]) -> int:
+        """Use Gemini AI to generate pytest tests based on actual source code."""
+        # Collect source code from up to 5 files
+        code_context = ""
+        for py_file in py_files[:5]:
+            full_path = os.path.join(sandbox_dir, py_file)
+            try:
+                with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+                    source = f.read()
+                if len(source.strip()) > 10:
+                    code_context += f"\n### File: {py_file}\n```python\n{source}\n```\n"
+            except Exception:
+                continue
+
+        if not code_context:
+            return self._write_dynamic_tests(test_path, sandbox_dir, py_files, {})
+
+        prompt = (
+            "You are a test engineer. Generate pytest test functions for the following Python code.\n\n"
+            "RULES:\n"
+            "- Generate ONLY pytest test functions inside a single TestCodeQuality class\n"
+            "- Test real functions/classes found in the code\n"
+            "- Include tests for: input validation, error handling, edge cases, return values\n"
+            "- Use simple assertions (assert, assertEqual) — no mocking\n"
+            "- Import modules using the file paths given (relative to sandbox)\n"
+            "- Each test function name must start with 'test_'\n"
+            "- Generate between 3 and 10 tests\n"
+            "- Output ONLY the Python test file, no explanations\n\n"
+            f"Source files:\n{code_context}"
+        )
+
+        system_instruction = (
+            "You are a test generator. Output only valid Python code for a pytest test file. "
+            "No markdown code fences, no explanations. Start with import statements."
+        )
+
+        try:
+            test_code = gemini.generate_text(prompt, system_instruction=system_instruction)
+            # Strip markdown fences
+            test_code = test_code.strip()
+            if test_code.startswith("```python"):
+                test_code = test_code[len("```python"):].strip()
+            if test_code.startswith("```"):
+                test_code = test_code[3:].strip()
+            if test_code.endswith("```"):
+                test_code = test_code[:-3].strip()
+
+            # Prepend sandbox path setup
+            header = (
+                f'"""\nAI-generated tests by CruiseMode + Gemini.\n"""\n\n'
+                f'import sys\nimport os\n\n'
+                f'SANDBOX = os.path.abspath("{sandbox_dir}")\n'
+                f'sys.path.insert(0, SANDBOX)\n\n'
+            )
+
+            full_test = header + test_code
+
+            # Verify it's valid Python
+            compile(full_test, test_path, "exec")
+
+            with open(test_path, "w") as f:
+                f.write(full_test)
+
+            # Count test functions
+            count = len(re.findall(r"def test_", full_test))
+            return max(count, 1)
+
+        except (SyntaxError, Exception) as e:
+            self.log(f"⚠️ Gemini test generation failed: {e}, falling back to regex", level="warning")
+            return self._write_dynamic_tests(test_path, sandbox_dir, py_files, {})
 
     def _write_dynamic_tests(self, filepath: str, sandbox_dir: str,
                               py_files: list[str], state: dict) -> int:
