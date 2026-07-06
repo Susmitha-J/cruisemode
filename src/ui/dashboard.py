@@ -48,8 +48,23 @@ def load_text(filepath: str) -> str:
 
 def setup_demo_files(case_name: str, repo_url: str = "", custom_ac: str = ""):
     """Configure inputs and sample_app based on the selected demo case."""
+    # Clean previous run state
+    shutil.rmtree(".sandbox", ignore_errors=True)
+    shutil.rmtree("generated_tests", ignore_errors=True)
+    shutil.rmtree("sample_app", ignore_errors=True)
     os.makedirs("inputs", exist_ok=True)
     os.makedirs("sample_app", exist_ok=True)
+
+    # Write shared scaffolding files that agents expect
+    with open("sample_app/__init__.py", "w") as f:
+        f.write("")
+    with open("sample_app/models.py", "w") as f:
+        f.write("# Data models placeholder\n")
+    with open("sample_app/requirements.txt", "w") as f:
+        f.write("fastapi\nuvicorn\n")
+    # Default sonarqube report (cases override if needed)
+    with open("inputs/sonarqube_report.json", "w") as f:
+        f.write(json.dumps({"project": case_name, "findings": []}))
 
     if case_name == "Refund API (Municipal Finance Service)":
         # Write default app files
@@ -126,7 +141,7 @@ def setup_demo_files(case_name: str, repo_url: str = "", custom_ac: str = ""):
                         "severity": "CRITICAL",
                         "cve": "CVE-2022-29217",
                         "recommended_action": "Upgrade pyjwt to version 2.4.0 or higher.",
-                        "auto_patchable": false
+                        "auto_patchable": False
                     }
                 ]
             }))
@@ -226,7 +241,7 @@ def setup_demo_files(case_name: str, repo_url: str = "", custom_ac: str = ""):
                         "message": "Raw SQL injection pattern found in sqlite3 execute command.",
                         "file": "sample_app/app.py",
                         "line": 9,
-                        "auto_patchable": false  # Requires manual rewrite!
+                        "auto_patchable": False  # Requires manual rewrite!
                     }
                 ]
             }))

@@ -59,11 +59,29 @@ class CruiseModeWorkflow:
         logger.info("🚀 CruiseMode Workflow Starting")
         logger.info("=" * 60)
 
+        # Dynamically extract feature name from acceptance criteria file header
+        feature_name = "Refund API"  # Default fallback
+        ac_file = "inputs/acceptance_criteria.md"
+        try:
+            with open(ac_file, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("# "):
+                        # Parse header: "# Acceptance Criteria - Transit Routing API"
+                        header = line.lstrip("# ").strip()
+                        if " - " in header:
+                            feature_name = header.split(" - ", 1)[1].strip()
+                        elif "Acceptance Criteria" not in header:
+                            feature_name = header
+                        break
+        except FileNotFoundError:
+            pass
+
         # Initialize shared workflow state
         state: dict[str, Any] = {
-            "feature_name": "Refund API",
+            "feature_name": feature_name,
             "inputs": {
-                "acceptance_criteria_file": "inputs/acceptance_criteria.md",
+                "acceptance_criteria_file": ac_file,
             },
             "sample_app_dir": "sample_app",
             "sandbox_dir": ".sandbox",
