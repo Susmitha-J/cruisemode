@@ -297,7 +297,7 @@ and ran local validation.
 
 ---
 
-## 4. Safe Patches Applied
+## 4. Safe Sandbox Patches
 
 | Patch ID | Type | Description |
 |----------|------|-------------|
@@ -312,7 +312,7 @@ and ran local validation.
 
 ## 5. OSS Dependency Alerts
 
-OSS dependency findings are surfaced as alerts, not auto-patched or treated as local validation blockers. Dependency upgrades require regression testing, compatibility review, license/security review, and downstream Jenkins/security pipeline validation.
+CruiseMode does not auto-patch OSS dependencies because dependency upgrades require regression testing, compatibility review, and downstream security validation.
 
 """
         findings = oss.get("findings", [])

@@ -1,6 +1,6 @@
 # CruiseMode PR Report
 
-**Generated:** 2026-07-06 02:20:36 UTC
+**Generated:** 2026-07-06 05:13:51 UTC
 **Feature:** Refund API Validation
 **Recommendation:** `READY_WITH_ALERTS`
 
@@ -42,7 +42,7 @@ and ran local validation.
 
 ---
 
-## 4. Safe Patches Applied
+## 4. Safe Sandbox Patches
 
 | Patch ID | Type | Description |
 |----------|------|-------------|
@@ -56,7 +56,7 @@ and ran local validation.
 
 ## 5. OSS Dependency Alerts
 
-OSS dependency findings are surfaced as alerts, not auto-patched or treated as local validation blockers. Dependency upgrades require regression testing, compatibility review, license/security review, and downstream Jenkins/security pipeline validation.
+CruiseMode does not auto-patch OSS dependencies because dependency upgrades require regression testing, compatibility review, and downstream security validation.
 
 - 🔴 **pyjwt@2.3.0** — CVE-2022-29217 (CRITICAL)
   - Recommended Action: Review dependency upgrade with regression testing before merge.
@@ -86,7 +86,7 @@ OSS dependency findings are surfaced as alerts, not auto-patched or treated as l
 - **Passed:** 9/9
 - **Failed:** 0
 - **Errors:** 0
-- **Duration:** 0.36s
+- **Duration:** 0.31s
 
 ---
 

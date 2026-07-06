@@ -86,10 +86,9 @@ class GeminiClient:
         # Conversational questions
         if "pii" in prompt_lower or "logging" in prompt_lower:
             return (
-                "I patched the PII logging in `sample_app/app.py` because logging raw request dicts "
-                "exposes sensitive user data (like emails and card numbers) in plaintext to build/production logs, "
-                "violating security compliance standards. The patch masks these fields and logs only the safe "
-                "`payment_id` and `amount`."
+                "The PII logging issue in `sample_app/app.py` was successfully patched in the sandbox. "
+                "The original code logged the full request including the user's email and card number, "
+                "which has been masked to log only the safe `payment_id` and `amount`."
             )
         elif "broad exception" in prompt_lower or "narrow" in prompt_lower or "except exception" in prompt_lower:
             return (
@@ -104,11 +103,26 @@ class GeminiClient:
                 "Functions with high nesting and multiple branches are prone to errors and hard to test. "
                 "The patch added a clean code annotation/refactoring note to address this complexity during the next code review cycle."
             )
-        elif "jenkins" in prompt_lower or "trigger" in prompt_lower:
+        elif "jenkins" in prompt_lower or "trigger" in prompt_lower or "proceed" in prompt_lower:
             return (
-                "Yes, it is safe to trigger the Jenkins feature build. All local pytest runs have passed, "
-                "and safe code quality patches have been validated. However, please review the critical OSS alerts "
-                "logged in your dashboard and verify the pyjwt dependency upgrade in your package manager before final merge."
+                "Yes, local validation has passed, meaning it is safe to hand off to the Jenkins pipeline. "
+                "However, the developer should review the logged OSS alerts and verify the dependency upgrade manually."
+            )
+        elif "why did cruisemode not patch oss" in prompt_lower or "not patch oss" in prompt_lower:
+            return (
+                "CruiseMode does not auto-patch OSS dependencies because dependency upgrades require regression testing, "
+                "compatibility review, and downstream security validation."
+            )
+        elif "why is the status ready_with_alerts" in prompt_lower or "ready_with_alerts" in prompt_lower or "status" in prompt_lower:
+            return (
+                "The final status is `READY_WITH_ALERTS` because all local pytest runs passed (9/9 passed) and "
+                "3 safe sandbox patches were successfully applied, but a CRITICAL OSS dependency alert exists "
+                "(pyjwt@2.3.0 / CVE-2022-29217). Dependency upgrades require manual testing and downstream verification."
+            )
+        elif "review before pr" in prompt_lower or "should i review" in prompt_lower or "should the developer review" in prompt_lower:
+            return (
+                "Before submitting the PR, you should review the side-by-side git diff of the sandbox patches "
+                "(PII log masking, broad exception narrowing, and SonarQube complexity annotations) and the critical OSS advisory alert for `pyjwt`."
             )
         elif "hello" in prompt_lower or "hi " in prompt_lower or "hey" in prompt_lower:
             return (
@@ -132,10 +146,5 @@ class GeminiClient:
         elif "report" in prompt_lower or "pr" in prompt_lower:
             return "PR report generated. Recommendation: READY_WITH_ALERTS (critical OSS alerts present)."
         else:
-            return (
-                "As your CruiseMode AI Advisor, I analyzed your code scans. The local pytest suite passed "
-                "(9/9 tests). I applied 3 safe patches in the sandbox (PII logging and broad exceptions) and "
-                "flagged a critical OSS pyjwt dependency vulnerability. Dependency upgrades are not auto-patched "
-                "because they require manual regression and security validation."
-            )
+            return "The current run artifacts do not contain enough information."
 

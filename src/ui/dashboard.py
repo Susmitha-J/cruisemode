@@ -4,21 +4,21 @@ from __future__ import annotations
 CruiseMode Streamlit Dashboard v0.2 (Hackathon Edition)
 
 Displays the results of a CruiseMode workflow run:
-1. Feature Readiness Status
+1. Feature Readiness
 2. Jenkins Handoff Recommendation
 3. Acceptance Criteria Coverage
 4. Scan Summary
-5. Safe Patches Applied (with visual HTML side-by-side diff)
+5. Safe Sandbox Patches (with visual HTML side-by-side diff)
 6. OSS Dependency Alerts
-7. Pytest Validation
-8. Cloud Artifact Upload Result
-9. BigQuery Run Summary Result
+7. Local Test Validation
+8. Cloud Evidence Storage
+9. BigQuery Run History
 10. PR Report
 
 Interactive Features:
-- Apply Sandbox Patches locally
-- Simulate Pre-Jenkins CI Handoff pipeline execution
-- Conversational CruiseMode AI Advisor chatbot sidebar
+- Promote Reviewed Sandbox Patches to Local Source
+- Run Jenkins Handoff Simulation pipeline execution
+- Conversational CruiseMode AI Advisor chatbot sidebar (grounded in run artifacts)
 """
 
 import json
@@ -59,10 +59,29 @@ def main():
     st.caption("Multi-Agent Pre-Jenkins Validation for Developer Workflows")
     st.markdown("---")
 
+    # Load validation results & alerts
+    results = load_json("outputs/validation_results.json")
+    oss_alerts = load_json("outputs/oss_alerts.json")
+    jenkins_handoff = load_json("outputs/jenkins_handoff.json")
+
     # --- Sidebar Chatbot Assistant ---
     st.sidebar.title("💬 CruiseMode AI Advisor")
-    st.sidebar.caption("Ask questions about code patches, exceptions, or security alerts.")
+    st.sidebar.caption("CruiseMode AI Advisor — explains this validation run")
     
+    if not results:
+        st.sidebar.warning("Run `python3 -m src.main` first to generate CruiseMode artifacts.")
+    else:
+        # Suggested questions helper UI
+        st.sidebar.markdown("""
+        **Try asking:**
+        - *Why is the status READY_WITH_ALERTS?*
+        - *What PII issue was patched?*
+        - *Why did CruiseMode not patch OSS?*
+        - *Can this proceed to Jenkins?*
+        - *What should I review before PR?*
+        """)
+        st.sidebar.markdown("---")
+
     if "messages" not in st.session_state:
         st.session_state.messages = [
             {
@@ -79,36 +98,64 @@ def main():
         with st.sidebar.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # User chat input
-    if user_prompt := st.sidebar.chat_input("Ask about the patches..."):
-        # Add user message to history
-        st.session_state.messages.append({"role": "user", "content": user_prompt})
-        with st.sidebar.chat_message("user"):
-            st.markdown(user_prompt)
+    # User chat input (only allowed if artifacts exist)
+    if results:
+        if user_prompt := st.sidebar.chat_input("Ask about this validation run..."):
+            # Add user message to history
+            st.session_state.messages.append({"role": "user", "content": user_prompt})
+            with st.sidebar.chat_message("user"):
+                st.markdown(user_prompt)
 
-        # Generate response using GeminiClient
-        gemini = GeminiClient()
-        agent_response = gemini.generate_text(user_prompt)
+            # Build context from the 5 validation artifacts
+            context = ""
+            artifacts = {
+                "outputs/validation_results.json": "Validation Results (JSON)",
+                "outputs/pr_report.md": "PR Report (Markdown)",
+                "outputs/suggested_changes.md": "Suggested Changes (Markdown)",
+                "outputs/oss_alerts.json": "OSS Alerts (JSON)",
+                "outputs/jenkins_handoff.json": "Jenkins Handoff (JSON)"
+            }
+            
+            for filepath, desc in artifacts.items():
+                if os.path.exists(filepath):
+                    try:
+                        with open(filepath, "r", encoding="utf-8") as f:
+                            context += f"\n=== ARTIFACT: {desc} ===\n{f.read()}\n"
+                    except Exception:
+                        pass
+            
+            # Grounded prompt instruction
+            system_instruction = (
+                "You are CruiseMode AI Advisor. Answer only using the provided CruiseMode run artifacts. "
+                "If the answer is not available in the artifacts, say that the current run artifacts do "
+                "not contain enough information. Do not invent test results, Jenkins results, scan results, "
+                "files, counts, or security conclusions."
+            )
+            
+            full_prompt = (
+                f"{system_instruction}\n\n"
+                f"Context from CruiseMode run artifacts:\n{context}\n\n"
+                f"User Question: {user_prompt}"
+            )
 
-        # Add assistant message to history
-        st.session_state.messages.append({"role": "assistant", "content": agent_response})
-        with st.sidebar.chat_message("assistant"):
-            st.markdown(agent_response)
+            # Generate response using GeminiClient
+            gemini = GeminiClient()
+            agent_response = gemini.generate_text(full_prompt)
 
-    # Load validation results & alerts
-    results = load_json("outputs/validation_results.json")
-    oss_alerts = load_json("outputs/oss_alerts.json")
-    jenkins_handoff = load_json("outputs/jenkins_handoff.json")
+            # Add assistant message to history
+            st.session_state.messages.append({"role": "assistant", "content": agent_response})
+            with st.sidebar.chat_message("assistant"):
+                st.markdown(agent_response)
 
     if not results:
         st.warning(
             "⚠️ No validation results found. "
-            "Run the workflow first: `python -m src.main`"
+            "Run the workflow first: `python3 -m src.main`"
         )
         return
 
-    # --- 1. Feature Readiness Status ---
-    st.subheader("1. Feature Readiness Status")
+    # --- 1. Feature Readiness ---
+    st.subheader("1. Feature Readiness")
     recommendation = results.get("final_status", results.get("recommendation", "UNKNOWN"))
     col1, col2, col3 = st.columns(3)
 
@@ -143,23 +190,25 @@ def main():
     else:
         st.error(f"**Jenkins Recommendation:** {handoff_rec}")
 
-    # Simulated Live Jenkins Build Webhook
+    # Honest Jenkins Handoff Simulation UI
+    st.caption("This simulation does not run a real Jenkins job. It visualizes how CruiseMode's validation results and handoff artifact would guide a Jenkins feature build.")
+    
     col_sim_1, col_sim_2 = st.columns([1, 4])
     with col_sim_1:
-        if st.button("🚀 Run Live Jenkins CI Handoff"):
+        if st.button("🚀 Run Jenkins Handoff Simulation"):
             st.session_state["show_jenkins_sim"] = True
     
     if st.session_state.get("show_jenkins_sim"):
-        st.info("🔄 Initiating Jenkins pre-push validation pipeline execution...")
+        st.info("🔄 Initiating Jenkins handoff simulation...")
         progress_bar = st.progress(0)
         status_text = st.empty()
         
         steps = [
-            (20, "Fetching git workspace branch: feature/boilerplate..."),
-            (40, "Running SonarQube quality gateway checks..."),
-            (60, "Scanning requirements.txt dependencies for licensing/security..."),
-            (80, "Running unit & integration test suites (pytest)..."),
-            (100, "Handoff validation successful! Status: READY TO MERGE.")
+            (20, "Simulated checkout of git workspace..."),
+            (40, "Simulated SonarQube quality gate scan..."),
+            (60, "Simulated OSS dependency scan analysis..."),
+            (80, "Simulated unit/API test validation run..."),
+            (100, "Simulated Jenkins handoff recommendation evaluated.")
         ]
         
         for val, text in steps:
@@ -167,7 +216,7 @@ def main():
             progress_bar.progress(val)
             status_text.text(text)
             
-        st.success("🎉 Pre-Jenkins CI Pipeline PASSED successfully! Proceeding to PR review.")
+        st.success(f"🎉 Simulated Jenkins handoff completed with recommendation: {recommendation}")
         st.session_state["show_jenkins_sim"] = False
 
     st.markdown("---")
@@ -192,18 +241,20 @@ def main():
 
     st.markdown("---")
 
-    # --- 5. Safe Patches Applied ---
-    st.subheader("5. Safe Patches Applied")
+    # --- 5. Safe Sandbox Patches ---
+    st.subheader("5. Safe Sandbox Patches")
     st.metric("Safe Patches Applied", results.get("safe_patches_applied", results.get("patches_applied", 0)))
 
-    # Action to Apply Patches Locally
-    if st.button("🔧 Apply Sandbox Patches to Local Source Code"):
+    # Safety Warning & Promotion Controls
+    st.info("CruiseMode applies patches only inside the sandbox by default. Review the side-by-side diff before promoting changes to local source. Promoting patches modifies the local sample_app workspace but does not commit or push code.")
+
+    if st.button("🔧 Promote Reviewed Sandbox Patches to Local Source"):
         try:
             shutil.copy(".sandbox/app.py", "sample_app/app.py")
             shutil.copy(".sandbox/refund_service.py", "sample_app/refund_service.py")
-            st.success("✅ Successfully transferred sandbox patches to your local workspace files!")
+            st.success("✅ Reviewed sandbox patches were promoted to the local source workspace. Review and commit these changes manually.")
         except Exception as e:
-            st.error(f"❌ Failed to transfer files: {e}")
+            st.error(f"❌ Failed to promote sandbox patches: {e}")
 
     # Side-by-side Git Diff HTML viewer
     st.markdown("#### Code Diff: Original vs Sandbox Patched")
@@ -248,8 +299,8 @@ def main():
 
     st.markdown("---")
 
-    # --- 7. Pytest Validation ---
-    st.subheader("7. Pytest Validation")
+    # --- 7. Local Test Validation ---
+    st.subheader("7. Local Test Validation")
     validation = results.get("validation", {})
     val_status = validation.get("status", "NOT_RUN")
 
@@ -265,8 +316,8 @@ def main():
 
     st.markdown("---")
 
-    # --- 8. Cloud Artifact Upload Result ---
-    st.subheader("8. Cloud Artifact Upload Result")
+    # --- 8. Cloud Evidence Storage ---
+    st.subheader("8. Cloud Evidence Storage")
     cloud_gcs = results.get("cloud_gcs", {})
     if cloud_gcs.get("uploaded"):
         st.success(f"✅ GCS Upload Active: bucket `{cloud_gcs.get('bucket')}`")
@@ -283,8 +334,8 @@ def main():
 
     st.markdown("---")
 
-    # --- 9. BigQuery Run Summary Result ---
-    st.subheader("9. BigQuery Run Summary Result")
+    # --- 9. BigQuery Run History ---
+    st.subheader("9. BigQuery Run History")
     cloud_bq = results.get("cloud_bq", {})
     if cloud_bq.get("loaded"):
         st.success(f"✅ Loaded run summary to BigQuery table: `{cloud_bq.get('table')}`")
@@ -318,7 +369,7 @@ def main():
     # --- 10. PR Report ---
     st.subheader("10. PR Report")
     pr_report = load_text("outputs/pr_report.md")
-    with st.expander("View Full PR Report", expanded=True):
+    with st.expander("View PR Report Detail", expanded=True):
         st.markdown(pr_report)
 
 
