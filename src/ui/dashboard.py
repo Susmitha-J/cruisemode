@@ -126,14 +126,13 @@ def main():
             )
             
             full_prompt = (
-                f"{system_instruction}\n\n"
                 f"Context from CruiseMode run artifacts:\n{context}\n\n"
                 f"User Question: {user_prompt}"
             )
 
             # Generate response using GeminiClient
             gemini = GeminiClient()
-            agent_response = gemini.generate_text(full_prompt)
+            agent_response = gemini.generate_text(full_prompt, system_instruction=system_instruction)
 
             # Add assistant message to history
             st.session_state.messages.append({"role": "assistant", "content": agent_response})

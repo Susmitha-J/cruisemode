@@ -53,24 +53,30 @@ class GeminiClient:
         """Whether real Gemini API calls are enabled."""
         return self._enabled
 
-    def generate_text(self, prompt: str) -> str:
+    def generate_text(self, prompt: str, system_instruction: str | None = None) -> str:
         """
         Generate text from a prompt using Gemini or mock fallback.
 
         Args:
             prompt: The text prompt to send to the model.
+            system_instruction: Optional system instruction for grounding / hallucination prevention.
 
         Returns:
             Generated text response.
         """
         if self._enabled and self.client:
-            return self._call_gemini(prompt)
+            return self._call_gemini(prompt, system_instruction)
         return self._mock_response(prompt)
 
-    def _call_gemini(self, prompt: str) -> str:
+    def _call_gemini(self, prompt: str, system_instruction: str | None = None) -> str:
         """Call the real Gemini API with a try-except fallback."""
         try:
-            response = self.client.generate_content(prompt)
+            import google.generativeai as genai
+            if system_instruction:
+                model = genai.GenerativeModel(self.model, system_instruction=system_instruction)
+            else:
+                model = self.client
+            response = model.generate_content(prompt)
             return response.text
         except Exception as e:
             logger.error(f"Error calling Gemini API: {e}. Falling back to mock.")
